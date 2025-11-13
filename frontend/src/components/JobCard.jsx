@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Clock, DollarSign, MapPin, Briefcase } from 'lucide-react';
+import { Clock, DollarSign, MapPin, Briefcase, IndianRupee } from 'lucide-react';
+import { formatSalaryToINR } from '../utils/currency';
 
 const JobCard = ({ job }) => {
   // Handle both backend (_id) and frontend (id) data
   const jobId = job._id || job.id;
   const company = job.company || job.client || 'Company';
-  const salary = job.salary || (job.budget ? `$${job.budget}` : 'Not specified');
+  const salary = formatSalaryToINR(job.salary || (job.budget ? `$${job.budget}` : 'Not specified'));
   const location = job.location || 'Remote';
   const postedTime = job.postedTime || (job.createdAt ? new Date(job.createdAt).toLocaleDateString() : 'Recently');
   
@@ -66,7 +67,7 @@ const JobCard = ({ job }) => {
       <div className="flex items-center justify-between pt-4 border-t border-gray-100">
         <div className="flex items-center space-x-4 text-sm text-gray-500">
           <div className="flex items-center">
-            <DollarSign className="w-4 h-4 mr-1 text-green-600" />
+            <IndianRupee className="w-4 h-4 mr-1 text-green-600" />
             <span className="font-semibold text-gray-900">{salary}</span>
           </div>
           {job.duration && (

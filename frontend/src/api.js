@@ -6,7 +6,8 @@ const API = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true // Enable sending cookies with requests
+  withCredentials: true, // Enable sending cookies with requests
+  timeout: 10000 // 10 second timeout
 });
 
 // Add request interceptor to include auth token
@@ -19,6 +20,7 @@ API.interceptors.request.use(
     return config;
   },
   (error) => {
+    console.error('Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -27,11 +29,25 @@ API.interceptors.request.use(
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Handle unauthorized access (e.g., redirect to login)
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('Response error:', error.response.status, error.response.data);
+      
+      if (error.response.status === 401) {
+        // Handle unauthorized access (e.g., redirect to login)
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('No response received:', error.request);
+      error.message = 'Unable to connect to the server. Please check your internet connection.';
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('Request setup error:', error.message);
     }
+    
     return Promise.reject(error);
   }
 );
