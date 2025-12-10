@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Briefcase, 
@@ -12,88 +12,122 @@ import {
   Eye,
   Plus,
   DollarSign,
-  MessageSquare
+  MessageSquare,
+  Edit,
+  Trash2,
+  Calendar
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { jobAPI } from '../api';
+import toast from 'react-hot-toast';
 
 const RecruiterDashboard = () => {
   const { user } = useAuth();
-  console.log(user);
+  const navigate = useNavigate();
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Dummy data for recruiter dashboard
+  // Fetch jobs on component mount
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        setLoading(true);
+        const response = await jobAPI.getMyJobs();
+        if (response.success) {
+          setJobs(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+        toast.error('Failed to load your jobs');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchJobs();
+    }
+  }, [user]);
+
+  // Calculate stats from actual jobs
   const stats = [
     {
       icon: <Briefcase className="w-6 h-6" />,
-      label: 'Active Job Postings',
-      value: '12',
-      change: '+3 this week',
+      label: 'Total Job Postings',
+      value: jobs.length.toString(),
+      change: `${jobs.filter(j => j.status === 'open' || j.status === 'bidding').length} active`,
       color: 'bg-blue-500',
     },
     {
       icon: <Users className="w-6 h-6" />,
-      label: 'Total Applicants',
-      value: '156',
-      change: '+24 new applicants',
+      label: 'Open for Bidding',
+      value: jobs.filter(j => {
+        if (!j.biddingDeadline) return false;
+        return (j.status === 'open' || j.status === 'bidding') && new Date(j.biddingDeadline) > new Date();
+      }).length.toString(),
+      change: 'Jobs accepting bids',
       color: 'bg-green-500',
     },
     {
       icon: <FileText className="w-6 h-6" />,
-      label: 'Interviews Scheduled',
-      value: '8',
-      change: '+2 this week',
+      label: 'Closed Jobs',
+      value: jobs.filter(j => j.status === 'closed' || j.status === 'cancelled').length.toString(),
+      change: 'Completed or cancelled',
       color: 'bg-purple-500',
     },
     {
       icon: <TrendingUp className="w-6 h-6" />,
-      label: 'Hire Rate',
-      value: '68%',
-      change: '+5% from last month',
+      label: 'This Week',
+      value: jobs.filter(j => {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return new Date(j.createdAt) > weekAgo;
+      }).length.toString(),
+      change: 'New postings',
       color: 'bg-orange-500',
     },
   ];
 
-  const recentJobs = [
-    {
-      id: 1,
-      title: 'Senior Frontend Developer',
-      company: 'TechCorp Inc.',
-      status: 'Active',
-      applicants: 24,
-      views: 156,
-      posted: '2 days ago',
-      budget: '$8,000 - $12,000',
-    },
-    {
-      id: 2,
-      title: 'UI/UX Designer',
-      company: 'Design Studio',
-      status: 'Active',
-      applicants: 18,
-      views: 98,
-      posted: '5 days ago',
-      budget: '$5,000 - $8,000',
-    },
-    {
-      id: 3,
-      title: 'Full Stack Developer',
-      company: 'StartupXYZ',
-      status: 'Closed',
-      applicants: 45,
-      views: 234,
-      posted: '2 weeks ago',
-      budget: '$10,000 - $15,000',
-    },
-    {
-      id: 4,
-      title: 'Product Manager',
-      company: 'Innovation Labs',
-      status: 'Active',
-      applicants: 12,
-      views: 67,
-      posted: '1 week ago',
-      budget: '$12,000 - $18,000',
-    },
-  ];
+  // Handle delete job
+  const handleDeleteJob = async (jobId) => {
+    if (!window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await jobAPI.deleteJob(jobId);
+      if (response.success) {
+        toast.success('Job deleted successfully');
+        setJobs(jobs.filter(j => j._id !== jobId));
+      }
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to delete job';
+      toast.error(errorMessage);
+    }
+  };
+
+  // Get bidding time remaining
+  const getBiddingTimeRemaining = (deadline) => {
+    if (!deadline) return null;
+    const deadlineDate = new Date(deadline);
+    const now = new Date();
+    const diff = deadlineDate - now;
+    
+    if (diff <= 0) return 'Closed';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}d left`;
+    if (hours > 0) return `${hours}h left`;
+    
+    const minutes = Math.floor(diff / (1000 * 60));
+    return `${minutes}m left`;
+  };
+
+  // Get recent jobs (last 5)
+  const recentJobs = jobs.slice(0, 5);
 
   const recentApplicants = [
     {
@@ -240,56 +274,108 @@ const RecruiterDashboard = () => {
               </Link>
             </div>
 
-            <div className="space-y-4">
-              {recentJobs.map((job, index) => (
-                <motion.div
-                  key={job.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="border border-gray-200 rounded-lg p-4 hover:border-primary-300 hover:shadow-md transition-all duration-200"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{job.title}</h3>
-                      <p className="text-sm text-gray-600">{job.company}</p>
-                    </div>
-                    <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
-                      {getStatusIcon(job.status)}
-                      {job.status}
-                    </span>
-                  </div>
+            {loading ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
+              </div>
+            ) : recentJobs.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p>No jobs posted yet</p>
+                <Link to="/post-job" className="text-primary-600 hover:text-primary-700 font-medium mt-2 inline-block">
+                  Post your first job
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recentJobs.map((job, index) => {
+                  const isBiddingOpen = job.biddingDeadline && new Date(job.biddingDeadline) > new Date() && (job.status === 'open' || job.status === 'bidding');
+                  const timeRemaining = getBiddingTimeRemaining(job.biddingDeadline);
                   
-                  <div className="grid grid-cols-2 gap-4 mb-3">
-                    <div>
-                      <div className="text-xs text-gray-500">Applicants</div>
-                      <div className="text-sm font-semibold text-gray-900">{job.applicants}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Views</div>
-                      <div className="text-sm font-semibold text-gray-900">{job.views}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                    <div>
-                      <div className="text-xs text-gray-500">Budget</div>
-                      <div className="text-sm font-semibold text-gray-900">{job.budget}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-gray-500">Posted</div>
-                      <div className="text-sm text-gray-600">{job.posted}</div>
-                    </div>
-                    <Link
-                      to={`/jobs/${job.id}`}
-                      className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200"
+                  return (
+                    <motion.div
+                      key={job._id || job.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                      className="border border-gray-200 rounded-lg p-4 hover:border-primary-300 hover:shadow-md transition-all duration-200"
                     >
-                      <Eye className="w-5 h-5" />
-                    </Link>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-1">{job.title}</h3>
+                          <p className="text-sm text-gray-600">{job.company}</p>
+                        </div>
+                        <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
+                          {getStatusIcon(job.status)}
+                          {job.status}
+                        </span>
+                      </div>
+
+                      {/* Bidding Deadline Info */}
+                      {job.biddingDeadline && (
+                        <div className={`mb-3 p-2 rounded-lg ${
+                          isBiddingOpen ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'
+                        }`}>
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center">
+                              <Calendar className={`w-3 h-3 mr-1 ${isBiddingOpen ? 'text-blue-600' : 'text-gray-500'}`} />
+                              <span className={isBiddingOpen ? 'text-blue-700 font-medium' : 'text-gray-600'}>
+                                {isBiddingOpen ? 'Bidding Open' : 'Bidding Closed'}
+                              </span>
+                            </div>
+                            {timeRemaining && (
+                              <span className={`font-semibold ${isBiddingOpen ? 'text-blue-700' : 'text-gray-500'}`}>
+                                {timeRemaining}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                        <div>
+                          <div className="text-xs text-gray-500">Salary</div>
+                          <div className="text-sm font-semibold text-gray-900">{job.salary || 'Not specified'}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs text-gray-500">Posted</div>
+                          <div className="text-sm text-gray-600">
+                            {new Date(job.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            to={`/jobs/${job._id || job.id}`}
+                            className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200"
+                            title="View"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </Link>
+                          {(job.status === 'open' || job.status === 'bidding') && (
+                            <>
+                              <button
+                                onClick={() => navigate(`/post-job?edit=${job._id || job.id}`)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                                title="Edit"
+                              >
+                                <Edit className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteJob(job._id || job.id)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </motion.div>
 
           {/* Recent Applicants */}

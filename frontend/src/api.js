@@ -160,6 +160,17 @@ export const jobAPI = {
       console.error('Error deleting job:', error);
       throw error;
     }
+  },
+
+  // Get recruiter's own jobs
+  getMyJobs: async () => {
+    try {
+      const response = await API.get('/v1/jobs/my-jobs');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching my jobs:', error);
+      throw error;
+    }
   }
 };
 

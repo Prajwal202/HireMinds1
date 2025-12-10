@@ -6,11 +6,20 @@ const {
   addJob,
   updateJob,
   deleteJob,
+  getMyJobs,
 } = require('../controllers/jobController');
+const { protect, authorize } = require('../middleware/auth');
 
-// Routes
-router.route('/').get(getJobs).post(addJob);
+// Public routes
+router.route('/').get(getJobs);
+router.route('/:id').get(getJob);
 
-router.route('/:id').get(getJob).put(updateJob).delete(deleteJob);
+// Protected routes - Recruiter only
+router.use(protect);
+router.use(authorize('employer', 'admin')); // authorize accepts multiple roles
+
+router.route('/').post(addJob);
+router.route('/my-jobs').get(getMyJobs);
+router.route('/:id').put(updateJob).delete(deleteJob);
 
 module.exports = router;

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Clock, DollarSign, MapPin, Briefcase, IndianRupee } from 'lucide-react';
+import { Clock, DollarSign, MapPin, Briefcase, IndianRupee, Calendar } from 'lucide-react';
 import { formatSalaryToINR } from '../utils/currency';
 
 const JobCard = ({ job }) => {
@@ -10,6 +10,28 @@ const JobCard = ({ job }) => {
   const salary = formatSalaryToINR(job.salary || (job.budget ? `$${job.budget}` : 'Not specified'));
   const location = job.location || 'Remote';
   const postedTime = job.postedTime || (job.createdAt ? new Date(job.createdAt).toLocaleDateString() : 'Recently');
+  
+  // Calculate time remaining for bidding
+  const getBiddingTimeRemaining = () => {
+    if (!job.biddingDeadline) return null;
+    const deadline = new Date(job.biddingDeadline);
+    const now = new Date();
+    const diff = deadline - now;
+    
+    if (diff <= 0) return 'Bidding Closed';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days} day${days > 1 ? 's' : ''} left`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} left`;
+    
+    const minutes = Math.floor(diff / (1000 * 60));
+    return `${minutes} minute${minutes > 1 ? 's' : ''} left`;
+  };
+
+  const biddingTimeRemaining = getBiddingTimeRemaining();
+  const isBiddingOpen = job.biddingDeadline && new Date(job.biddingDeadline) > new Date() && (job.status === 'open' || job.status === 'bidding');
   
   return (
     <motion.div
@@ -61,6 +83,29 @@ const JobCard = ({ job }) => {
               +{job.skills.length - 4} more
             </span>
           )}
+        </div>
+      )}
+
+      {/* Bidding Deadline Info */}
+      {job.biddingDeadline && (
+        <div className={`mb-4 p-3 rounded-lg ${
+          isBiddingOpen ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-sm">
+              <Calendar className={`w-4 h-4 mr-2 ${isBiddingOpen ? 'text-blue-600' : 'text-gray-500'}`} />
+              <span className={isBiddingOpen ? 'text-blue-700 font-medium' : 'text-gray-600'}>
+                {isBiddingOpen ? 'Bidding Open' : 'Bidding Closed'}
+              </span>
+            </div>
+            {biddingTimeRemaining && (
+              <span className={`text-xs font-semibold ${
+                isBiddingOpen ? 'text-blue-700' : 'text-gray-500'
+              }`}>
+                {biddingTimeRemaining}
+              </span>
+            )}
+          </div>
         </div>
       )}
 
