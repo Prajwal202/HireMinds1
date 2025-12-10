@@ -1,55 +1,28 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { 
+  Briefcase, 
+  DollarSign, 
+  TrendingUp, 
+  Users,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Eye,
+  FileText,
+  Award
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-const Dashboard = () => {
-  const navigate = useNavigate();
-  const { user, loading } = useAuth();
-
-  useEffect(() => {
-    // Wait for auth to load
-    if (loading) return;
-
-    // If no user, redirect to login (though ProtectedRoute should handle this)
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    // Redirect based on user role
-    const userRole = user?.role;
-    
-    if (userRole === 'admin') {
-      navigate('/admin', { replace: true });
-    } else if (userRole === 'employer' || userRole === 'recruiter') {
-      navigate('/recruiter/dashboard', { replace: true });
-    } else if (userRole === 'freelancer') {
-      navigate('/freelancer/dashboard', { replace: true });
-    }
-    // If role is undefined or doesn't match, stay on this page as fallback
-  }, [user, loading, navigate]);
-
-  // Show loading state while checking auth
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-
-  // This should rarely be seen as redirects happen quickly
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-    </div>
-  );
-
-  // Dummy data for dashboard
+const FreelancerDashboard = () => {
+  const { user } = useAuth();
+  console.log(user);
+  // Dummy data for freelancer dashboard
   const stats = [
     {
       icon: <Briefcase className="w-6 h-6" />,
-      label: 'Active Jobs',
+      label: 'Active Projects',
       value: '8',
       change: '+2 this week',
       color: 'bg-blue-500',
@@ -153,7 +126,7 @@ const Dashboard = () => {
           className="mb-8"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Welcome back, {user?.name || 'User'}! 👋
+            Welcome back, {user?.name || 'Freelancer'}! 👋
           </h1>
           <p className="text-gray-600">Here's what's happening with your projects today.</p>
         </motion.div>
@@ -201,16 +174,16 @@ const Dashboard = () => {
                 Browse Jobs
               </Link>
               <Link
-                to="/post-job"
+                to="/profile"
                 className="px-6 py-3 bg-transparent border-2 border-white text-white rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-all duration-200"
               >
-                Post a Job
+                Update Profile
               </Link>
             </div>
           </div>
         </motion.div>
 
-        {/* Recent Jobs */}
+        {/* Recent Projects */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -289,4 +262,5 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default FreelancerDashboard;
+

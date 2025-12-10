@@ -1,22 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Menu, X, User, Briefcase, MessageSquare, LogIn, LogOut, Home } from 'lucide-react';
+import { Menu, X, User, Briefcase, MessageSquare, LogIn, LogOut, Home, Shield } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Check if user is logged in
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setIsLoggedIn(true);
-    }
-  }, [location]);
 
   // Handle scroll effect
   useEffect(() => {
@@ -32,23 +25,32 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setIsLoggedIn(false);
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
-  const navLinks = [
-    { name: 'Home', path: '/', icon: <Home className="w-5 h-5" /> },
-    { name: 'Jobs', path: '/jobs', icon: <Briefcase className="w-5 h-5" /> },
-    { name: 'Messages', path: '/chat', icon: <MessageSquare className="w-5 h-5" /> },
-    { name: 'Dashboard', path: '/dashboard', icon: <User className="w-5 h-5" /> },
-  ];
+  // Build nav links based on user role
+  const getNavLinks = () => {
+    const links = [
+      { name: 'Home', path: '/', icon: <Home className="w-5 h-5" /> },
+      { name: 'Jobs', path: '/jobs', icon: <Briefcase className="w-5 h-5" /> },
+      { name: 'Messages', path: '/chat', icon: <MessageSquare className="w-5 h-5" /> },
+      { name: 'Dashboard', path: '/dashboard', icon: <User className="w-5 h-5" /> },
+    ];
+
+    // Add admin link if user is admin
+    if (user && user.role === 'admin') {
+      links.push({ name: 'Admin', path: '/admin', icon: <Shield className="w-5 h-5" /> });
+    }
+
+    return links;
+  };
+
+  const navLinks = getNavLinks();
 
   return (
     <nav className="w-full bg-white shadow-sm">
-      <div className="container mx-auto px-4 h-full flex items-center justify-between">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -76,7 +78,7 @@ const Navbar = () => {
               </Link>
             ))}
             
-            {isLoggedIn ? (
+            {isAuthenticated ? (
               <button
                 onClick={handleLogout}
                 className="ml-4 flex items-center space-x-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
@@ -134,7 +136,7 @@ const Navbar = () => {
               </Link>
             ))}
             <div className="pt-4 pb-2 border-t border-gray-200">
-              {isLoggedIn ? (
+              {isAuthenticated ? (
                 <button
                   onClick={() => {
                     handleLogout();
@@ -159,7 +161,6 @@ const Navbar = () => {
           </div>
         </motion.div>
       )}
-      </div>
     </nav>
   );
 };

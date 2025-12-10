@@ -53,11 +53,25 @@ const Login = () => {
     setIsSubmitting(true);
     try {
       const { email, password } = formData;
-      const { success, error: loginError } = await login(email, password);
+      const { success, error: loginError, user: loggedInUser } = await login(email, password);
       
       if (success) {
         toast.success('Successfully logged in!');
-        navigate('/dashboard');
+        
+        // Get user role from login response
+        const userRole = loggedInUser?.role;
+        
+        // Route based on user role
+        if (userRole === 'admin') {
+          navigate('/admin');
+        } else if (userRole === 'employer' || userRole === 'recruiter') {
+          navigate('/recruiter/dashboard');
+        } else if (userRole === 'freelancer') {
+          navigate('/freelancer/dashboard');
+        } else {
+          // Default fallback to general dashboard
+          navigate('/dashboard');
+        }
       } else {
         toast.error(loginError || 'Login failed. Please check your credentials.');
       }

@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const response = await authAPI.login({ email, password });
       setUser(response.user);
-      return { success: true };
+      return { success: true, user: response.user };
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Login failed. Please try again.';
       setError(errorMessage);
@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const response = await authAPI.register(userData);
       setUser(response.user);
-      return { success: true };
+      return { success: true, user: response.user };
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Registration failed. Please try again.';
       setError(errorMessage);

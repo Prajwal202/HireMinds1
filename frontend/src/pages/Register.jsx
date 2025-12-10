@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Mail, Lock, Eye, EyeOff, UserPlus, Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'react-hot-toast';
 
 const Register = () => {
   const navigate = useNavigate();
+  const { register } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -13,106 +16,90 @@ const Register = () => {
     confirmPassword: '',
     role: 'freelancer',
   });
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.name.trim()) {
+      errors.name = 'Name is required';
+    }
+    if (!formData.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = 'Please enter a valid email';
+    }
+    if (!formData.password) {
+      errors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters long';
+    }
+    if (!formData.confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
     // Clear error when user starts typing
-    if (error) setError('');
+    if (formErrors[name]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    if (!validateForm() || isSubmitting) return;
     
-    // Validation
-    if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
-      setError('Please fill in all required fields');
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match!');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
-
+    setIsSubmitting(true);
     try {
-      setIsLoading(true);
-      console.log('Sending registration request...');
+      // Map 'client' role to 'employer' for backend compatibility
+      const roleToSend = formData.role === 'client' ? 'employer' : formData.role;
       
-      const response = await fetch('http://localhost:5000/api/v1/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          email: formData.email.trim().toLowerCase(),
-          password: formData.password,
-          role: formData.role || 'freelancer'
-        }),
-        credentials: 'include',
-        mode: 'cors'
+      const { success, error: registerError, user: registeredUser } = await register({
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+        role: roleToSend || 'freelancer'
       });
-
-      console.log('Response status:', response.status);
       
-      // Handle non-JSON responses
-      const contentType = response.headers.get('content-type');
-      let data;
-      
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
-        throw new Error('Server returned an invalid response');
-      }
-      
-      console.log('Response data:', data);
-      
-      if (!response.ok) {
-        const errorMessage = data.message || data.error || 'Registration failed. Please try again.';
-        throw new Error(errorMessage);
-      }
-
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        setSuccess('Registration successful! Redirecting...');
-        setTimeout(() => {
+      if (success) {
+        toast.success('Registration successful!');
+        
+        // Get user role from registration response
+        const userRole = registeredUser?.role;
+        
+        // Route based on user role
+        if (userRole === 'admin') {
+          navigate('/admin');
+        } else if (userRole === 'employer' || userRole === 'recruiter') {
+          navigate('/recruiter/dashboard');
+        } else if (userRole === 'freelancer') {
+          navigate('/freelancer/dashboard');
+        } else {
+          // Default fallback to general dashboard
           navigate('/dashboard');
-        }, 1500);
+        }
       } else {
-        console.error('No token in response:', data);
-        throw new Error('No authentication token received');
+        toast.error(registerError || 'Registration failed. Please try again.');
       }
     } catch (err) {
-      console.error('Registration error:', {
-        name: err.name,
-        message: err.message,
-        stack: err.stack
-      });
-      
-      // Handle network errors
-      if (err.name === 'TypeError' && err.message.includes('Failed to fetch')) {
-        setError('Unable to connect to the server. Please check your internet connection.');
-      } else {
-        setError(err.message || 'An error occurred during registration');
-      }
+      console.error('Registration error:', err);
+      toast.error('An unexpected error occurred. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -136,37 +123,6 @@ const Register = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Success Message */}
-            {success && (
-              <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-green-700">{success}</p>
-                  </div>
-                </div>
-              </div>
-            )}
             {/* Name Input */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -183,9 +139,14 @@ const Register = () => {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                  className={`block w-full pl-10 pr-3 py-3 border ${
+                    formErrors.name ? 'border-red-300' : 'border-gray-300'
+                  } rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200`}
                   placeholder="John Doe"
                 />
+                {formErrors.name && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
+                )}
               </div>
             </div>
 
@@ -205,9 +166,14 @@ const Register = () => {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                  className={`block w-full pl-10 pr-3 py-3 border ${
+                    formErrors.email ? 'border-red-300' : 'border-gray-300'
+                  } rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200`}
                   placeholder="you@example.com"
                 />
+                {formErrors.email && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
+                )}
               </div>
             </div>
 
@@ -238,7 +204,7 @@ const Register = () => {
                       : 'border-gray-300 hover:border-gray-400'
                   }`}
                 >
-                  <div className="font-semibold">Client</div>
+                  <div className="font-semibold">Recruiter</div>
                   <div className="text-xs text-gray-500 mt-1">Hire talent</div>
                 </button>
               </div>
@@ -260,9 +226,14 @@ const Register = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                  className={`block w-full pl-10 pr-10 py-3 border ${
+                    formErrors.password ? 'border-red-300' : 'border-gray-300'
+                  } rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200`}
                   placeholder="••••••••"
                 />
+                {formErrors.password && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.password}</p>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -293,9 +264,14 @@ const Register = () => {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                  className={`block w-full pl-10 pr-3 py-3 border ${
+                    formErrors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                  } rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200`}
                   placeholder="••••••••"
                 />
+                {formErrors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.confirmPassword}</p>
+                )}
               </div>
             </div>
 
@@ -323,12 +299,10 @@ const Register = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading}
-              className={`w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200 ${
-                isLoading ? 'opacity-75 cursor-not-allowed' : ''
-              }`}
+              disabled={isSubmitting}
+              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200 disabled:opacity-75 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
+              {isSubmitting ? (
                 <>
                   <Loader2 className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" />
                   Creating Account...

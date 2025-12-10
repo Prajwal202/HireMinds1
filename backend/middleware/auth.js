@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const ErrorResponse = require('../utils/errorResponse');
 const User = require('../models/User');
+const { hasRole } = require('../utils/roleHelper');
 
 // Protect routes
 exports.protect = async (req, res, next) => {
@@ -14,9 +15,9 @@ exports.protect = async (req, res, next) => {
     token = req.headers.authorization.split(' ')[1];
   }
   // Set token from cookie
-  // else if (req.cookies.token) {
-  //   token = req.cookies.token;
-  // }
+  else if (req.cookies.token) {
+    token = req.cookies.token;
+  }
 
   // Make sure token exists
   if (!token) {
@@ -27,6 +28,11 @@ exports.protect = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = await User.findById(decoded.id);
+    
+    if (!req.user) {
+      return next(new ErrorResponse('User not found', 401));
+    }
+    
     next();
   } catch (err) {
     return next(new ErrorResponse('Not authorized to access this route', 401));
@@ -36,10 +42,14 @@ exports.protect = async (req, res, next) => {
 // Grant access to specific roles
 exports.authorize = (...roles) => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    if (!req.user) {
+      return next(new ErrorResponse('Not authorized to access this route', 401));
+    }
+    
+    if (!hasRole(req.user.role, roles)) {
       return next(
         new ErrorResponse(
-          `User role ${req.user.role} is not authorized to access this route`,
+          `User role ${req.user.role || 'undefined'} is not authorized to access this route`,
           403
         )
       );

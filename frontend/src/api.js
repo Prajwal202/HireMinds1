@@ -188,4 +188,95 @@ export const recommendationAPI = {
   }
 };
 
+// Admin API endpoints
+export const adminAPI = {
+  // Get all users
+  getAllUsers: async () => {
+    try {
+      const response = await API.get('/v1/admin/users');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw error;
+    }
+  },
+
+  // Get single user
+  getUser: async (id) => {
+    try {
+      const response = await API.get(`/v1/admin/users/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      throw error;
+    }
+  },
+
+  // Update user
+  updateUser: async (id, userData) => {
+    try {
+      const response = await API.put(`/v1/admin/users/${id}`, userData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  },
+
+  // Delete user
+  deleteUser: async (id) => {
+    try {
+      const response = await API.delete(`/v1/admin/users/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw error;
+    }
+  },
+
+  // Get all jobs (admin view)
+  getAllJobs: async () => {
+    try {
+      const response = await API.get('/v1/admin/jobs');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+      throw error;
+    }
+  },
+
+  // Update job
+  updateJob: async (id, jobData) => {
+    try {
+      const response = await API.put(`/v1/admin/jobs/${id}`, jobData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating job:', error);
+      throw error;
+    }
+  },
+
+  // Delete job
+  deleteJob: async (id) => {
+    try {
+      const response = await API.delete(`/v1/admin/jobs/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      throw error;
+    }
+  },
+
+  // Get statistics
+  getStats: async () => {
+    try {
+      const response = await API.get('/v1/admin/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      throw error;
+    }
+  }
+};
+
 export default API;
