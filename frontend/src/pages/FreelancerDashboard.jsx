@@ -11,83 +11,139 @@ import {
   XCircle,
   Eye,
   FileText,
-  Award
+  Award,
+  User
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { freelancerAPI } from '../api';
 
 const FreelancerDashboard = () => {
   const { user } = useAuth();
-  console.log(user);
-  // Dummy data for freelancer dashboard
-  const stats = [
+  const [stats, setStats] = useState([
     {
       icon: <Briefcase className="w-6 h-6" />,
       label: 'Active Projects',
-      value: '8',
-      change: '+2 this week',
+      value: '0',
+      change: '+0 this week',
       color: 'bg-blue-500',
     },
     {
       icon: <DollarSign className="w-6 h-6" />,
       label: 'Total Earnings',
-      value: '$12,450',
-      change: '+$1,200 this month',
+      value: '$0',
+      change: '+$0 this month',
       color: 'bg-green-500',
     },
     {
       icon: <TrendingUp className="w-6 h-6" />,
       label: 'Success Rate',
-      value: '94%',
-      change: '+3% from last month',
+      value: '0%',
+      change: '+0% from last month',
       color: 'bg-purple-500',
     },
     {
       icon: <Users className="w-6 h-6" />,
       label: 'Total Clients',
-      value: '24',
-      change: '+4 new clients',
+      value: '0',
+      change: '+0 new clients',
       color: 'bg-orange-500',
     },
-  ];
+  ]);
+  const [recentJobs, setRecentJobs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const recentJobs = [
-    {
-      id: 1,
-      title: 'E-commerce Website Development',
-      client: 'TechCorp Inc.',
-      status: 'In Progress',
-      budget: '$5,000',
-      deadline: '15 days left',
-      progress: 65,
-    },
-    {
-      id: 2,
-      title: 'Mobile App UI Design',
-      client: 'StartupXYZ',
-      status: 'In Progress',
-      budget: '$2,500',
-      deadline: '8 days left',
-      progress: 80,
-    },
-    {
-      id: 3,
-      title: 'Data Analysis Project',
-      client: 'Analytics Co.',
-      status: 'Completed',
-      budget: '$3,200',
-      deadline: 'Completed',
-      progress: 100,
-    },
-    {
-      id: 4,
-      title: 'WordPress Blog Setup',
-      client: 'BlogMaster',
-      status: 'Pending',
-      budget: '$800',
-      deadline: '20 days left',
-      progress: 0,
-    },
-  ];
+  // Load dashboard data
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      const [statsData, jobsData] = await Promise.all([
+        freelancerAPI.getStats(),
+        // Add API call for recent jobs when available
+        Promise.resolve([]) // Placeholder for jobs API
+      ]);
+
+      if (statsData) {
+        setStats([
+          {
+            icon: <Briefcase className="w-6 h-6" />,
+            label: 'Active Projects',
+            value: statsData.activeProjects || '0',
+            change: `+${statsData.newProjectsThisWeek || 0} this week`,
+            color: 'bg-blue-500',
+          },
+          {
+            icon: <DollarSign className="w-6 h-6" />,
+            label: 'Total Earnings',
+            value: `$${statsData.totalEarnings?.toLocaleString() || '0'}`,
+            change: `+$${statsData.earningsThisMonth?.toLocaleString() || '0'} this month`,
+            color: 'bg-green-500',
+          },
+          {
+            icon: <TrendingUp className="w-6 h-6" />,
+            label: 'Success Rate',
+            value: `${statsData.successRate || 0}%`,
+            change: `+${statsData.successRateChange || 0}% from last month`,
+            color: 'bg-purple-500',
+          },
+          {
+            icon: <Users className="w-6 h-6" />,
+            label: 'Total Clients',
+            value: statsData.totalClients || '0',
+            change: `+${statsData.newClients || 0} new clients`,
+            color: 'bg-orange-500',
+          },
+        ]);
+      }
+
+      // Mock recent jobs data - replace with actual API call
+      setRecentJobs([
+        {
+          id: 1,
+          title: 'E-commerce Website Development',
+          client: 'TechCorp Inc.',
+          status: 'In Progress',
+          budget: '$5,000',
+          deadline: '15 days left',
+          progress: 65,
+        },
+        {
+          id: 2,
+          title: 'Mobile App UI Design',
+          client: 'StartupXYZ',
+          status: 'In Progress',
+          budget: '$2,500',
+          deadline: '8 days left',
+          progress: 80,
+        },
+        {
+          id: 3,
+          title: 'Data Analysis Project',
+          client: 'Analytics Co.',
+          status: 'Completed',
+          budget: '$3,200',
+          deadline: 'Completed',
+          progress: 100,
+        },
+        {
+          id: 4,
+          title: 'WordPress Blog Setup',
+          client: 'BlogMaster',
+          status: 'Pending',
+          budget: '$800',
+          deadline: '20 days left',
+          progress: 0,
+        },
+      ]);
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+      // Keep default values if API fails
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -174,9 +230,10 @@ const FreelancerDashboard = () => {
                 Browse Jobs
               </Link>
               <Link
-                to="/profile"
+                to="/freelancer/profile"
                 className="px-6 py-3 bg-transparent border-2 border-white text-white rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-all duration-200"
               >
+                <User className="w-5 h-5 inline mr-2" />
                 Update Profile
               </Link>
             </div>

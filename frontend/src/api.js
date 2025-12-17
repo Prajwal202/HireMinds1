@@ -296,4 +296,200 @@ export const adminAPI = {
   }
 };
 
+// Freelancer Profile API endpoints
+export const freelancerAPI = {
+  // Get freelancer profile
+  getProfile: async () => {
+    try {
+      const response = await API.get('/v1/freelancer/profile');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching freelancer profile:', error);
+      throw error;
+    }
+  },
+
+  // Update freelancer profile
+  updateProfile: async (profileData) => {
+    try {
+      const response = await API.put('/v1/freelancer/profile', profileData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating freelancer profile:', error);
+      throw error;
+    }
+  },
+
+  // Upload resume
+  uploadResume: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('resume', file);
+      
+      const response = await API.post('/v1/freelancer/resume', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading resume:', error);
+      throw error;
+    }
+  },
+
+  // Upload profile image
+  uploadProfileImage: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('profileImage', file);
+      
+      const response = await API.post('/v1/freelancer/profile-image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+      throw error;
+    }
+  },
+
+  // Add skill
+  addSkill: async (skillData) => {
+    try {
+      const response = await API.post('/v1/freelancer/skills', skillData);
+      return response.data;
+    } catch (error) {
+      console.error('Error adding skill:', error);
+      throw error;
+    }
+  },
+
+  // Update skill
+  updateSkill: async (skillId, skillData) => {
+    try {
+      const response = await API.put(`/v1/freelancer/skills/${skillId}`, skillData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating skill:', error);
+      throw error;
+    }
+  },
+
+  // Remove skill
+  removeSkill: async (skillId) => {
+    try {
+      const response = await API.delete(`/v1/freelancer/skills/${skillId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error removing skill:', error);
+      throw error;
+    }
+  },
+
+  // Add project
+  addProject: async (projectData) => {
+    try {
+      const response = await API.post('/v1/freelancer/projects', projectData);
+      return response.data;
+    } catch (error) {
+      console.error('Error adding project:', error);
+      throw error;
+    }
+  },
+
+  // Update project
+  updateProject: async (projectId, projectData) => {
+    try {
+      const response = await API.put(`/v1/freelancer/projects/${projectId}`, projectData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating project:', error);
+      throw error;
+    }
+  },
+
+  // Remove project
+  removeProject: async (projectId) => {
+    try {
+      const response = await API.delete(`/v1/freelancer/projects/${projectId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error removing project:', error);
+      throw error;
+    }
+  },
+
+  // Get freelancer stats
+  getStats: async () => {
+    try {
+      const response = await API.get('/v1/freelancer/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching freelancer stats:', error);
+      throw error;
+    }
+  }
+};
+
+// Bid API
+export const bidAPI = {
+  // Get all bids for a recruiter
+  getRecruiterBids: async () => {
+    try {
+      const response = await API.get('/v1/bids/recruiter');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching recruiter bids:', error);
+      throw error;
+    }
+  },
+
+  // Get all bids for a specific job
+  getJobBids: async (jobId) => {
+    try {
+      const response = await API.get(`/v1/bids/job/${jobId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching job bids:', error);
+      throw error;
+    }
+  },
+
+  // Create a new bid
+  createBid: async (bidData) => {
+    try {
+      const response = await API.post('/v1/bids', bidData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating bid:', error);
+      throw error;
+    }
+  },
+
+  // Accept a bid
+  acceptBid: async (bidId) => {
+    try {
+      const response = await API.put(`/v1/bids/${bidId}/accept`);
+      return response.data;
+    } catch (error) {
+      console.error('Error accepting bid:', error);
+      throw error;
+    }
+  },
+
+  // Reject a bid
+  rejectBid: async (bidId) => {
+    try {
+      const response = await API.put(`/v1/bids/${bidId}/reject`);
+      return response.data;
+    } catch (error) {
+      console.error('Error rejecting bid:', error);
+      throw error;
+    }
+  }
+};
+
 export default API;

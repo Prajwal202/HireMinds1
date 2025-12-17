@@ -7,6 +7,7 @@ import JobDetails from './pages/JobDetails';
 import PostJob from './pages/PostJob';
 import Dashboard from './pages/Dashboard';
 import FreelancerDashboard from './pages/FreelancerDashboard';
+import FreelancerProfile from './pages/FreelancerProfile';
 import RecruiterDashboard from './pages/RecruiterDashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -29,6 +30,7 @@ function App() {
             <Route path="/post-job" element={<ProtectedRoute><PostJob /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/freelancer/dashboard" element={<ProtectedRoute><FreelancerDashboard /></ProtectedRoute>} />
+            <Route path="/freelancer/profile" element={<ProtectedRoute><FreelancerProfile /></ProtectedRoute>} />
             <Route path="/recruiter/dashboard" element={<ProtectedRoute><RecruiterDashboard /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

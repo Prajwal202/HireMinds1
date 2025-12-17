@@ -14,7 +14,7 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
-import { jobAPI } from '../api';
+import { jobAPI, bidAPI } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -24,9 +24,58 @@ const JobDetails = () => {
   const { user } = useAuth();
   const [bidAmount, setBidAmount] = useState('');
   const [coverLetter, setCoverLetter] = useState('');
+  const [isSubmittingBid, setIsSubmittingBid] = useState(false);
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Handle bid submission
+  const handleBidSubmit = async (e) => {
+    e.preventDefault();
+    console.log('Bid submission started:', { bidAmount, coverLetter, jobId: job?._id, userRole: user?.role });
+    
+    if (!bidAmount || !coverLetter) {
+      toast.error('Please fill in all bid fields');
+      return;
+    }
+
+    setIsSubmittingBid(true);
+    try {
+      const bidData = {
+        jobId: job._id,
+        bidAmount: parseFloat(bidAmount),
+        coverLetter: coverLetter.trim()
+      };
+      
+      console.log('Submitting bid data:', bidData);
+      const response = await bidAPI.createBid(bidData);
+      console.log('Bid submission response:', response);
+      
+      if (response.success) {
+        toast.success('Bid submitted successfully!');
+        setBidAmount('');
+        setCoverLetter('');
+        // Refresh job data to show updated status
+        const fetchJob = async () => {
+          try {
+            const response = await jobAPI.getJobById(id);
+            if (response.success) {
+              setJob(response.data);
+            }
+          } catch (err) {
+            console.error('Error refreshing job:', err);
+          }
+        };
+        fetchJob();
+      }
+    } catch (error) {
+      console.error('Error submitting bid:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to submit bid';
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmittingBid(false);
+    }
+  };
 
   // Fetch job data
   useEffect(() => {
@@ -56,14 +105,6 @@ const JobDetails = () => {
       fetchJob();
     }
   }, [id]);
-
-  // Handle bid submission
-  const handleBidSubmit = (e) => {
-    e.preventDefault();
-    toast.success('Bid submitted successfully! (This is a demo)');
-    setBidAmount('');
-    setCoverLetter('');
-  };
 
   // Handle job edit
   const handleEditJob = () => {
@@ -273,47 +314,59 @@ const JobDetails = () => {
                 </div>
               </div>
 
-              {/* Bid Form */}
-              <div className="border-t pt-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Submit Your Proposal</h2>
-                <form onSubmit={handleBidSubmit} className="space-y-4">
-                  <div>
-                    <label htmlFor="bidAmount" className="block text-sm font-medium text-gray-700 mb-2">
-                      Your Bid Amount ($)
-                    </label>
-                    <input
-                      type="number"
-                      id="bidAmount"
-                      value={bidAmount}
-                      onChange={(e) => setBidAmount(e.target.value)}
-                      placeholder="Enter your bid amount"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="coverLetter" className="block text-sm font-medium text-gray-700 mb-2">
-                      Cover Letter
-                    </label>
-                    <textarea
-                      id="coverLetter"
-                      value={coverLetter}
-                      onChange={(e) => setCoverLetter(e.target.value)}
-                      rows="6"
-                      placeholder="Explain why you're the best fit for this job..."
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      required
-                    ></textarea>
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full flex items-center justify-center px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors duration-200"
-                  >
-                    <Send className="w-5 h-5 mr-2" />
-                    Submit Proposal
-                  </button>
-                </form>
-              </div>
+              {/* Bid Form - Only for freelancers */}
+              {console.log('Bid form visibility check:', { userRole: user?.role, jobId: job?._id, jobExists: !!job })}
+              {user?.role === 'freelancer' && job && (
+                <div className="border-t pt-8">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Submit Your Proposal</h2>
+                  <form onSubmit={handleBidSubmit} className="space-y-4">
+                    <div>
+                      <label htmlFor="bidAmount" className="block text-sm font-medium text-gray-700 mb-2">
+                        Your Bid Amount ($)
+                      </label>
+                      <input
+                        type="number"
+                        id="bidAmount"
+                        value={bidAmount}
+                        onChange={(e) => setBidAmount(e.target.value)}
+                        placeholder="Enter your bid amount"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        required
+                        min="1"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="coverLetter" className="block text-sm font-medium text-gray-700 mb-2">
+                        Cover Letter
+                      </label>
+                      <textarea
+                        id="coverLetter"
+                        value={coverLetter}
+                        onChange={(e) => setCoverLetter(e.target.value)}
+                        rows="6"
+                        placeholder="Explain why you're the best fit for this job..."
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        required
+                      ></textarea>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingBid}
+                      className="w-full flex items-center justify-center px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors duration-200 disabled:opacity-75"
+                    >
+                      {isSubmittingBid ? (
+                        'Submitting...'
+                      ) : (
+                        <>
+                          <Send className="w-5 h-5 mr-2" />
+                          Submit Proposal
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </div>
+              )}
             </motion.div>
           </div>
 

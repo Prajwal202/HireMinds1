@@ -19,7 +19,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { jobAPI, authAPI } from '../api';
+import { jobAPI, authAPI, bidAPI } from '../api';
 import toast from 'react-hot-toast';
 
 const RecruiterDashboard = () => {
@@ -27,6 +27,7 @@ const RecruiterDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [jobs, setJobs] = useState([]);
+  const [bids, setBids] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -63,6 +64,22 @@ const RecruiterDashboard = () => {
       toast.error('Failed to refresh jobs');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch bids for the recruiter
+  const fetchBids = async () => {
+    try {
+      console.log('Fetching bids for recruiter...');
+      const response = await bidAPI.getRecruiterBids();
+      console.log('Bids response:', response);
+      if (response.success) {
+        setBids(response.data);
+        console.log('Bids loaded:', response.data.length);
+      }
+    } catch (error) {
+      console.error('Error fetching bids:', error);
+      // Don't show error toast for bids as it's not critical
     }
   };
 
@@ -133,6 +150,7 @@ const RecruiterDashboard = () => {
       console.log('User ID:', user.id);
       console.log('User role:', user.role);
       fetchJobs();
+      fetchBids(); // Also fetch bids
     } else {
       console.log('No user found, not fetching jobs');
     }
@@ -192,6 +210,45 @@ const RecruiterDashboard = () => {
     } catch (error) {
       console.error('Error deleting job:', error);
       const errorMessage = error.response?.data?.message || 'Failed to delete job';
+      toast.error(errorMessage);
+    }
+  };
+
+  // Handle accept bid
+  const handleAcceptBid = async (bidId) => {
+    if (!window.confirm('Are you sure you want to accept this bid? This will reject all other bids for this job.')) {
+      return;
+    }
+
+    try {
+      const response = await bidAPI.acceptBid(bidId);
+      if (response.success) {
+        toast.success('Bid accepted successfully!');
+        fetchBids(); // Refresh bids
+        refreshJobs(); // Refresh jobs to update status
+      }
+    } catch (error) {
+      console.error('Error accepting bid:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to accept bid';
+      toast.error(errorMessage);
+    }
+  };
+
+  // Handle reject bid
+  const handleRejectBid = async (bidId) => {
+    if (!window.confirm('Are you sure you want to reject this bid?')) {
+      return;
+    }
+
+    try {
+      const response = await bidAPI.rejectBid(bidId);
+      if (response.success) {
+        toast.success('Bid rejected');
+        fetchBids(); // Refresh bids
+      }
+    } catch (error) {
+      console.error('Error rejecting bid:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to reject bid';
       toast.error(errorMessage);
     }
   };
@@ -473,6 +530,102 @@ const RecruiterDashboard = () => {
                     </motion.div>
                   );
                 })}
+              </div>
+            )}
+          </motion.div>
+
+          {/* Recent Bids */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="bg-white rounded-xl shadow-md p-6"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Recent Bids</h2>
+              <div className="text-sm text-gray-500">
+                {bids.length} bid{bids.length !== 1 ? 's' : ''} received
+              </div>
+            </div>
+
+            {bids.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <DollarSign className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p>No bids received yet</p>
+                <p className="text-sm mt-2">Freelancers will bid on your job postings here</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {bids.slice(0, 5).map((bid, index) => (
+                  <motion.div
+                    key={bid._id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="font-semibold text-gray-900">{bid.freelancer.name}</h4>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            bid.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                            bid.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {bid.status}
+                          </span>
+                        </div>
+                        
+                        <div className="text-sm text-gray-600 mb-2">
+                          <span className="font-medium">Job:</span> {bid.job.title} at {bid.job.company}
+                        </div>
+                        
+                        <div className="flex items-center gap-4 mb-2">
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="w-4 h-4 text-green-600" />
+                            <span className="font-semibold text-gray-900">${bid.bidAmount}</span>
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {new Date(bid.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+
+                        <div className="text-sm text-gray-600 line-clamp-2">
+                          {bid.coverLetter}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 ml-4">
+                        {bid.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => handleAcceptBid(bid._id)}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200"
+                              title="Accept Bid"
+                            >
+                              <CheckCircle className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleRejectBid(bid._id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                              title="Reject Bid"
+                            >
+                              <XCircle className="w-5 h-5" />
+                            </button>
+                          </>
+                        )}
+                        <Link
+                          to={`/jobs/${bid.job._id}`}
+                          className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200"
+                          title="View Job"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </Link>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             )}
           </motion.div>
