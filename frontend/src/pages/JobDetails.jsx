@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -10,59 +10,131 @@ import {
   Calendar,
   User,
   Star,
-  Send
+  Send,
+  Edit,
+  Trash2
 } from 'lucide-react';
+import { jobAPI } from '../api';
+import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 const JobDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [bidAmount, setBidAmount] = useState('');
   const [coverLetter, setCoverLetter] = useState('');
+  const [job, setJob] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Dummy job data (in real app, fetch based on id)
-  const job = {
-    id: id,
-    title: 'Full Stack Web Developer Needed',
-    description: `We are looking for an experienced full stack developer to build a modern e-commerce platform. 
-    
-    The project involves:
-    - Building a responsive frontend using React
-    - Developing RESTful APIs with Node.js and Express
-    - Database design and implementation with MongoDB
-    - Integration with payment gateways (Stripe/PayPal)
-    - User authentication and authorization
-    - Admin dashboard for managing products and orders
-    
-    The ideal candidate should have:
-    - 3+ years of experience in full stack development
-    - Strong knowledge of React, Node.js, and MongoDB
-    - Experience with payment gateway integrations
-    - Good understanding of security best practices
-    - Excellent communication skills
-    
-    This is a great opportunity to work on an exciting project with a growing startup!`,
-    client: {
-      name: 'TechCorp Inc.',
-      rating: 4.8,
-      reviews: 127,
-      jobsPosted: 45,
-      hireRate: 92,
-    },
-    budget: '5000',
-    duration: '3 months',
-    type: 'Fixed',
-    location: 'Remote',
-    skills: ['React', 'Node.js', 'MongoDB', 'Express', 'Stripe', 'REST API', 'Git'],
-    postedTime: '2 hours ago',
-    proposals: 12,
-    category: 'Web Development',
-  };
+  // Fetch job data
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        setLoading(true);
+        console.log('Fetching job details for ID:', id);
+        const response = await jobAPI.getJobById(id);
+        console.log('Job details response:', response);
+        
+        if (response.success) {
+          setJob(response.data);
+        } else {
+          setError('Job not found');
+          toast.error('Job not found');
+        }
+      } catch (err) {
+        console.error('Error fetching job details:', err);
+        setError('Failed to load job details');
+        toast.error('Failed to load job details');
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    if (id) {
+      fetchJob();
+    }
+  }, [id]);
+
+  // Handle bid submission
   const handleBidSubmit = (e) => {
     e.preventDefault();
-    alert('Bid submitted successfully! (This is a demo)');
+    toast.success('Bid submitted successfully! (This is a demo)');
     setBidAmount('');
     setCoverLetter('');
   };
+
+  // Handle job edit
+  const handleEditJob = () => {
+    navigate(`/post-job?edit=${id}`);
+  };
+
+  // Handle job delete
+  const handleDeleteJob = async () => {
+    if (!window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await jobAPI.deleteJob(id);
+      if (response.success) {
+        toast.success('Job deleted successfully');
+        navigate('/recruiter/dashboard');
+      }
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      toast.error('Failed to delete job');
+    }
+  };
+
+  // Check if user can edit/delete this job
+  const canEditJob = user && job && (
+    user.role === 'admin' || 
+    (job.postedBy && (job.postedBy._id === user.id || job.postedBy === user.id))
+  );
+
+  // Format posted time
+  const formatPostedTime = (createdAt) => {
+    if (!createdAt) return 'Unknown';
+    const date = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffDays > 0) return `${diffDays} days ago`;
+    if (diffHours > 0) return `${diffHours} hours ago`;
+    return 'Just now';
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !job) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Job Not Found</h2>
+          <p className="text-gray-600 mb-6">{error || 'The job you are looking for does not exist.'}</p>
+          <Link
+            to="/jobs"
+            className="inline-flex items-center px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors duration-200"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Back to Jobs
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -96,19 +168,39 @@ const JobDetails = () => {
               <div className="mb-6">
                 <div className="flex items-start justify-between mb-4">
                   <h1 className="text-3xl font-bold text-gray-900">{job.title}</h1>
-                  <span className={`px-4 py-2 rounded-full text-sm font-medium ${
-                    job.type === 'Fixed' 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-blue-100 text-blue-700'
-                  }`}>
-                    {job.type} Price
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+                      job.type === 'Fixed' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {job.type}
+                    </span>
+                    {canEditJob && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleEditJob}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                          title="Edit Job"
+                        >
+                          <Edit className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={handleDeleteJob}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                          title="Delete Job"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                   <div className="flex items-center">
                     <Calendar className="w-4 h-4 mr-1" />
-                    Posted {job.postedTime}
+                    Posted {formatPostedTime(job.createdAt)}
                   </div>
                   <div className="flex items-center">
                     <MapPin className="w-4 h-4 mr-1" />
@@ -116,11 +208,11 @@ const JobDetails = () => {
                   </div>
                   <div className="flex items-center">
                     <Briefcase className="w-4 h-4 mr-1" />
-                    {job.category}
+                    {job.type}
                   </div>
                   <div className="flex items-center">
                     <User className="w-4 h-4 mr-1" />
-                    {job.proposals} Proposals
+                    {job.status || 'Open'}
                   </div>
                 </div>
               </div>
@@ -130,23 +222,23 @@ const JobDetails = () => {
                 <div>
                   <div className="flex items-center text-green-600 mb-1">
                     <DollarSign className="w-5 h-5 mr-1" />
-                    <span className="font-semibold">Budget</span>
+                    <span className="font-semibold">Salary</span>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">${job.budget}</div>
+                  <div className="text-2xl font-bold text-gray-900">{job.salary || 'Not specified'}</div>
                 </div>
                 <div>
                   <div className="flex items-center text-blue-600 mb-1">
                     <Clock className="w-5 h-5 mr-1" />
-                    <span className="font-semibold">Duration</span>
+                    <span className="font-semibold">Type</span>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">{job.duration}</div>
+                  <div className="text-2xl font-bold text-gray-900">{job.type}</div>
                 </div>
                 <div>
                   <div className="flex items-center text-purple-600 mb-1">
                     <Briefcase className="w-5 h-5 mr-1" />
-                    <span className="font-semibold">Experience</span>
+                    <span className="font-semibold">Status</span>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">Expert</div>
+                  <div className="text-2xl font-bold text-gray-900">{job.status || 'Open'}</div>
                 </div>
               </div>
 
@@ -160,16 +252,24 @@ const JobDetails = () => {
 
               {/* Skills Required */}
               <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Skills Required</h2>
-                <div className="flex flex-wrap gap-2">
-                  {job.skills.map((skill, index) => (
-                    <span
-                      key={index}
-                      className="px-4 py-2 bg-primary-50 text-primary-700 rounded-lg text-sm font-medium"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Job Details</h2>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Company</h3>
+                    <p className="text-gray-700">{job.company}</p>
+                  </div>
+                  {job.biddingDeadline && (
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Bidding Deadline</h3>
+                      <p className="text-gray-700">{new Date(job.biddingDeadline).toLocaleString()}</p>
+                    </div>
+                  )}
+                  {job.biddingDuration && (
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Bidding Duration</h3>
+                      <p className="text-gray-700">{job.biddingDuration} hours</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -225,41 +325,32 @@ const JobDetails = () => {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="bg-white rounded-xl shadow-md p-6 sticky top-24"
             >
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">About the Client</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Posted By</h3>
               
               <div className="mb-6">
                 <div className="flex items-center mb-4">
                   <div className="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold text-xl mr-3">
-                    {job.client.name.charAt(0)}
+                    {job.postedBy?.name ? job.postedBy.name.charAt(0).toUpperCase() : 'U'}
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900">{job.client.name}</h4>
+                    <h4 className="font-semibold text-gray-900">
+                      {job.postedBy?.name || 'Unknown'}
+                    </h4>
                     <div className="flex items-center text-sm text-gray-600">
-                      <Star className="w-4 h-4 text-yellow-400 fill-current mr-1" />
-                      <span>{job.client.rating} ({job.client.reviews} reviews)</span>
+                      <span>{job.postedBy?.email || 'No email available'}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Jobs Posted</span>
-                    <span className="font-semibold text-gray-900">{job.client.jobsPosted}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Hire Rate</span>
-                    <span className="font-semibold text-gray-900">{job.client.hireRate}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Member Since</span>
-                    <span className="font-semibold text-gray-900">Jan 2023</span>
+                    <span className="text-gray-600">Posted</span>
+                    <span className="font-semibold text-gray-900">
+                      {formatPostedTime(job.createdAt)}
+                    </span>
                   </div>
                 </div>
               </div>
-
-              <button className="w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors duration-200">
-                View Client Profile
-              </button>
             </motion.div>
           </div>
         </div>
