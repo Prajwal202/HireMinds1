@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { motion } from 'framer-motion';
+import { Briefcase, DollarSign, TrendingUp, Users, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
 
 const Dashboard = () => {
   const navigate = useNavigate();

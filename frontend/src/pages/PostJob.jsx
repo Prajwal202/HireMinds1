@@ -106,7 +106,7 @@ const PostJob = () => {
         response = await jobAPI.createJob(jobData);
         if (response.success) {
           toast.success('Job posted successfully!');
-          navigate('/recruiter/dashboard');
+          navigate('/recruiter/dashboard', { state: { refresh: true } });
         }
       }
     } catch (error) {

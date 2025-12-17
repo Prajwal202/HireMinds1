@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Briefcase, 
@@ -15,26 +15,110 @@ import {
   MessageSquare,
   Edit,
   Trash2,
-  Calendar
+  Calendar,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { jobAPI } from '../api';
+import { jobAPI, authAPI } from '../api';
 import toast from 'react-hot-toast';
 
 const RecruiterDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Fetch jobs on component mount
+  // Manual refresh function
+  const refreshJobs = async () => {
+    try {
+      setLoading(true);
+      console.log('Manual refresh: Fetching jobs from API...');
+      // Try getMyJobs first, fallback to getAllJobs if it fails
+      let response;
+      try {
+        response = await jobAPI.getMyJobs();
+        console.log('Manual getMyJobs response:', response);
+      } catch (myJobsError) {
+        console.log('Manual getMyJobs failed, trying getAllJobs:', myJobsError);
+        response = await jobAPI.getAllJobs();
+        console.log('Manual getAllJobs response:', response);
+        // Filter jobs by current user if we got all jobs
+        if (response.success && user) {
+          response.data = response.data.filter(job => 
+            job.postedBy && (job.postedBy._id === user.id || job.postedBy === user.id)
+          );
+          console.log('Manual filtered jobs for current user:', response.data);
+        }
+      }
+      if (response.success) {
+        setJobs(response.data);
+        toast.success(`Dashboard refreshed! Found ${response.data.length} jobs`);
+      } else {
+        toast.error('Failed to load jobs: ' + (response.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error refreshing jobs:', error);
+      toast.error('Failed to refresh jobs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Test authentication function
+  const testAuth = async () => {
+    console.log('Testing authentication...');
+    console.log('Current user:', user);
+    console.log('Token in localStorage:', !!localStorage.getItem('token'));
+    
+    try {
+      const response = await authAPI.getMe();
+      console.log('Auth test response:', response);
+      toast.success('Authentication working!');
+    } catch (error) {
+      console.error('Auth test failed:', error);
+      toast.error('Authentication failed: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  // Trigger refresh when navigating from PostJob with refresh state
+  useEffect(() => {
+    if (location.state?.refresh) {
+      setRefreshKey(prev => prev + 1);
+    }
+  }, [location.state?.refresh]);
+
+  // Fetch jobs on component mount and when location changes or refresh state is set
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         setLoading(true);
-        const response = await jobAPI.getMyJobs();
+        console.log('Fetching jobs from API...');
+        // Try getMyJobs first, fallback to getAllJobs if it fails
+        let response;
+        try {
+          response = await jobAPI.getMyJobs();
+          console.log('getMyJobs response:', response);
+        } catch (myJobsError) {
+          console.log('getMyJobs failed, trying getAllJobs:', myJobsError);
+          response = await jobAPI.getAllJobs();
+          console.log('getAllJobs response:', response);
+          // Filter jobs by current user if we got all jobs
+          if (response.success && user) {
+            response.data = response.data.filter(job => 
+              job.postedBy && (job.postedBy._id === user.id || job.postedBy === user.id)
+            );
+            console.log('Filtered jobs for current user:', response.data);
+          }
+        }
+        console.log('Final API response:', response);
         if (response.success) {
+          console.log('Jobs data:', response.data);
           setJobs(response.data);
+        } else {
+          console.log('API response not successful:', response);
+          toast.error('Failed to load jobs: ' + (response.message || 'Unknown error'));
         }
       } catch (error) {
         console.error('Error fetching jobs:', error);
@@ -45,9 +129,14 @@ const RecruiterDashboard = () => {
     };
 
     if (user) {
+      console.log('User authenticated:', user);
+      console.log('User ID:', user.id);
+      console.log('User role:', user.role);
       fetchJobs();
+    } else {
+      console.log('No user found, not fetching jobs');
     }
-  }, [user]);
+  }, [user, refreshKey]);
 
   // Calculate stats from actual jobs
   const stats = [
@@ -269,9 +358,19 @@ const RecruiterDashboard = () => {
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Recent Job Postings</h2>
-              <Link to="/jobs" className="text-primary-600 hover:text-primary-700 font-medium">
-                View All
-              </Link>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={refreshJobs}
+                  disabled={loading}
+                  className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                  title="Refresh"
+                >
+                  <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+                <Link to="/jobs" className="text-primary-600 hover:text-primary-700 font-medium">
+                  View All
+                </Link>
+              </div>
             </div>
 
             {loading ? (
