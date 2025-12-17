@@ -40,9 +40,10 @@ API.interceptors.response.use(
       console.error('Response error:', error.response.status, error.response.data);
       
       if (error.response.status === 401) {
-        // Handle unauthorized access (e.g., redirect to login)
+        // Handle unauthorized access - remove token but don't redirect
+        // Let the components handle the redirect logic
         localStorage.removeItem('token');
-        window.location.href = '/login';
+        console.log('401 Unauthorized - token removed, no redirect from interceptor');
       }
     } else if (error.request) {
       // The request was made but no response was received

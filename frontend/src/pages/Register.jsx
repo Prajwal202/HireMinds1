@@ -17,6 +17,7 @@ const Register = () => {
     role: 'freelancer',
   });
   const [formErrors, setFormErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = () => {
@@ -50,20 +51,75 @@ const Register = () => {
       [name]: value
     }));
     
-    // Clear error when user starts typing
+    // Clear form errors when user starts typing
     if (formErrors[name]) {
       setFormErrors(prev => ({
         ...prev,
         [name]: ''
       }));
     }
+    
+    // Don't clear submit error immediately - let user see it until they submit again
+  };
+
+  const getErrorMessage = (error) => {
+    if (!error) return '';
+    
+    // Check for specific error messages and provide user-friendly responses
+    if (error.toLowerCase().includes('email already exists') || 
+        error.toLowerCase().includes('user already exists') ||
+        error.toLowerCase().includes('email taken')) {
+      return 'An account with this email already exists. Please use a different email or try logging in.';
+    }
+    
+    if (error.toLowerCase().includes('invalid email') ||
+        error.toLowerCase().includes('email format')) {
+      return 'Please enter a valid email address.';
+    }
+    
+    if (error.toLowerCase().includes('password too weak') ||
+        error.toLowerCase().includes('password strength')) {
+      return 'Password is too weak. Please include uppercase, lowercase, numbers, and special characters.';
+    }
+    
+    if (error.toLowerCase().includes('password too short')) {
+      return 'Password must be at least 8 characters long.';
+    }
+    
+    if (error.toLowerCase().includes('name required') ||
+        error.toLowerCase().includes('name cannot be empty')) {
+      return 'Please enter your full name.';
+    }
+    
+    if (error.toLowerCase().includes('invalid role') ||
+        error.toLowerCase().includes('role not allowed')) {
+      return 'Invalid user role selected. Please try again.';
+    }
+    
+    if (error.toLowerCase().includes('validation failed')) {
+      return 'Please check all fields and try again.';
+    }
+    
+    // Default fallback
+    return 'Registration failed. Please try again later.';
   };
 
   const handleSubmit = async (e) => {
+    // Prevent any default form behavior
     e.preventDefault();
-    if (!validateForm() || isSubmitting) return;
+    e.stopPropagation();
     
+    // Clear previous errors
+    setSubmitError('');
+    
+    if (!validateForm() || isSubmitting) {
+      console.log('Validation failed or already submitting');
+      return false;
+    }
+    
+    console.log('Starting registration submission...');
     setIsSubmitting(true);
+    
     try {
       // Map 'client' role to 'employer' for backend compatibility
       const roleToSend = formData.role === 'client' ? 'employer' : formData.role;
@@ -74,6 +130,8 @@ const Register = () => {
         password: formData.password,
         role: roleToSend || 'freelancer'
       });
+      
+      console.log('Registration response:', { success, error: registerError, user: registeredUser });
       
       if (success) {
         toast.success('Registration successful!');
@@ -93,14 +151,24 @@ const Register = () => {
           navigate('/dashboard');
         }
       } else {
-        toast.error(registerError || 'Registration failed. Please try again.');
+        console.log('Registration failed, showing error:', registerError);
+        const userFriendlyError = getErrorMessage(registerError);
+        setSubmitError(userFriendlyError);
+        toast.error(userFriendlyError);
+        // Don't navigate, stay on the same page to show the error
       }
     } catch (err) {
-      console.error('Registration error:', err);
-      toast.error('An unexpected error occurred. Please try again.');
+      console.error('Registration error caught:', err);
+      const userFriendlyError = getErrorMessage(err.message || err.toString());
+      setSubmitError(userFriendlyError);
+      toast.error(userFriendlyError);
+      // Don't navigate, stay on the same page to show the error
     } finally {
+      console.log('Finally block, setting isSubmitting to false');
       setIsSubmitting(false);
     }
+    
+    return false;
   };
 
   return (
@@ -122,7 +190,23 @@ const Register = () => {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+            {/* Submit Error Alert */}
+            {submitError && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">Registration Error</h3>
+                    <p className="mt-1 text-sm text-red-700">{submitError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Name Input */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">

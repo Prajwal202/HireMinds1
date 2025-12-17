@@ -35,7 +35,24 @@ export const AuthProvider = ({ children }) => {
       setUser(response.user);
       return { success: true, user: response.user };
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Login failed. Please try again.';
+      console.error('Login error in AuthContext:', err);
+      let errorMessage = 'Login failed. Please try again.';
+      
+      if (err.response) {
+        // Handle specific error responses
+        if (err.response.status === 401) {
+          errorMessage = err.response.data?.message || 'Invalid credentials. Please check your email and password.';
+        } else if (err.response.status === 400) {
+          errorMessage = err.response.data?.message || 'Invalid input. Please check your credentials.';
+        } else if (err.response.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        } else {
+          errorMessage = err.response.data?.message || 'Login failed. Please try again.';
+        }
+      } else if (err.request) {
+        errorMessage = 'Unable to connect to the server. Please check your internet connection.';
+      }
+      
       setError(errorMessage);
       return { success: false, error: errorMessage };
     }
@@ -49,7 +66,24 @@ export const AuthProvider = ({ children }) => {
       setUser(response.user);
       return { success: true, user: response.user };
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Registration failed. Please try again.';
+      console.error('Registration error in AuthContext:', err);
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (err.response) {
+        // Handle specific error responses
+        if (err.response.status === 400) {
+          errorMessage = err.response.data?.message || 'Invalid registration data. Please check your input.';
+        } else if (err.response.status === 409) {
+          errorMessage = err.response.data?.message || 'Email already exists. Please use a different email.';
+        } else if (err.response.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        } else {
+          errorMessage = err.response.data?.message || 'Registration failed. Please try again.';
+        }
+      } else if (err.request) {
+        errorMessage = 'Unable to connect to the server. Please check your internet connection.';
+      }
+      
       setError(errorMessage);
       return { success: false, error: errorMessage };
     }

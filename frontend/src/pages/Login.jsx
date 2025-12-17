@@ -14,6 +14,7 @@ const Login = () => {
     password: '',
   });
   const [formErrors, setFormErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = () => {
@@ -37,23 +38,74 @@ const Login = () => {
       [name]: value
     }));
     
-    // Clear error when user starts typing
+    // Clear form errors when user starts typing
     if (formErrors[name]) {
       setFormErrors(prev => ({
         ...prev,
         [name]: ''
       }));
     }
+    
+    // Don't clear submit error immediately - let user see it until they submit again
+  };
+
+  const getErrorMessage = (error) => {
+    if (!error) return '';
+    
+    // Check for specific error messages and provide user-friendly responses
+    if (error.toLowerCase().includes('invalid credentials') || 
+        error.toLowerCase().includes('incorrect password') ||
+        error.toLowerCase().includes('password is incorrect')) {
+      return 'Incorrect password. Please try again.';
+    }
+    
+    if (error.toLowerCase().includes('user not found') || 
+        error.toLowerCase().includes('email not found') ||
+        error.toLowerCase().includes('no account found')) {
+      return 'No account found with this email address.';
+    }
+    
+    if (error.toLowerCase().includes('email not verified')) {
+      return 'Please verify your email address before logging in.';
+    }
+    
+    if (error.toLowerCase().includes('account locked') || 
+        error.toLowerCase().includes('account suspended')) {
+      return 'Your account has been locked. Please contact support.';
+    }
+    
+    if (error.toLowerCase().includes('too many attempts') ||
+        error.toLowerCase().includes('rate limit')) {
+      return 'Too many login attempts. Please try again later.';
+    }
+    
+    // Default fallback
+    return 'Login failed. Please check your credentials and try again.';
   };
 
   const handleSubmit = async (e) => {
+    // Prevent any default form behavior
     e.preventDefault();
-    if (!validateForm() || isSubmitting) return;
+    e.stopPropagation();
     
+    // Clear previous errors
+    setSubmitError('');
+    
+    if (!validateForm() || isSubmitting) {
+      console.log('Validation failed or already submitting');
+      return false;
+    }
+    
+    console.log('Starting login submission...');
     setIsSubmitting(true);
+    
     try {
       const { email, password } = formData;
+      console.log('Attempting login with:', { email, password: '***' });
+      
       const { success, error: loginError, user: loggedInUser } = await login(email, password);
+      
+      console.log('Login response:', { success, error: loginError, user: loggedInUser });
       
       if (success) {
         toast.success('Successfully logged in!');
@@ -73,14 +125,24 @@ const Login = () => {
           navigate('/dashboard');
         }
       } else {
-        toast.error(loginError || 'Login failed. Please check your credentials.');
+        console.log('Login failed, showing error:', loginError);
+        const userFriendlyError = getErrorMessage(loginError);
+        setSubmitError(userFriendlyError);
+        toast.error(userFriendlyError);
+        // Don't navigate, stay on the same page to show the error
       }
     } catch (err) {
-      console.error('Login error:', err);
-      toast.error('An unexpected error occurred. Please try again.');
+      console.error('Login error caught:', err);
+      const userFriendlyError = getErrorMessage(err.message || err.toString());
+      setSubmitError(userFriendlyError);
+      toast.error(userFriendlyError);
+      // Don't navigate, stay on the same page to show the error
     } finally {
+      console.log('Finally block, setting isSubmitting to false');
       setIsSubmitting(false);
     }
+    
+    return false;
   };
 
   return (
@@ -103,7 +165,24 @@ const Login = () => {
 
           {/* Form */}
           <div className="px-6 py-8 sm:px-10">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Submit Error Alert */}
+            {submitError && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">Login Error</h3>
+                    <p className="mt-1 text-sm text-red-700">{submitError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
               {/* Email Input */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
