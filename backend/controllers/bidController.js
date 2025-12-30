@@ -53,6 +53,30 @@ exports.getJobBids = async (req, res, next) => {
   }
 };
 
+// @desc    Get all bids for a freelancer
+// @route   GET /api/v1/bids/freelancer
+// @access  Private (Freelancer only)
+exports.getFreelancerBids = async (req, res, next) => {
+  try {
+    // Validate user is freelancer
+    if (req.user.role !== 'freelancer') {
+      return next(new ErrorResponse('Only freelancers can view their bids', 403));
+    }
+
+    const bids = await Bid.find({ freelancer: req.user.id })
+      .populate('job', 'title company salary status')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: bids.length,
+      data: bids
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Create a new bid
 // @route   POST /api/v1/bids
 // @access  Private (Freelancer only)
@@ -100,6 +124,7 @@ exports.createBid = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
+      message: "Bid submitted successfully",
       data: populatedBid
     });
   } catch (error) {

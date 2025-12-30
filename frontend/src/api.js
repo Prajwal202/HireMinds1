@@ -458,6 +458,17 @@ export const bidAPI = {
     }
   },
 
+  // Get all bids for a freelancer
+  getFreelancerBids: async () => {
+    try {
+      const response = await API.get('/v1/bids/freelancer');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching freelancer bids:', error);
+      throw error;
+    }
+  },
+
   // Create a new bid
   createBid: async (bidData) => {
     try {

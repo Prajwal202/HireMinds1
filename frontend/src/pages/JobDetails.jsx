@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { jobAPI, bidAPI } from '../api';
 import { useAuth } from '../contexts/AuthContext';
+import SimplePopup from '../components/SimplePopup';
 import toast from 'react-hot-toast';
 
 const JobDetails = () => {
@@ -28,6 +29,52 @@ const JobDetails = () => {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupMessage, setPopupMessage] = useState('');
+  const [userBid, setUserBid] = useState(null); // Track if user has already bid
+
+  // Check if user has already bid on this job
+  const checkUserBid = async () => {
+    if (user?.role === 'freelancer' && job?._id) {
+      try {
+        console.log('Checking if user has bid on job:', job._id);
+        // Get all freelancer's bids and check if any match this job
+        const response = await bidAPI.getFreelancerBids();
+        console.log('Freelancer bids response:', response);
+        if (response.success) {
+          const userBidData = response.data.find(bid => 
+            bid.job._id === job._id
+          );
+          console.log('Found user bid for this job:', userBidData);
+          setUserBid(userBidData || null);
+        }
+      } catch (error) {
+        console.error('Error checking user bid:', error);
+      }
+    }
+  };
+
+  // Check user bid when job data is loaded
+  useEffect(() => {
+    if (job && user) {
+      checkUserBid();
+    }
+  }, [job, user]);
+
+  // Handle popup close with auto-close timer
+  const handleClosePopup = () => {
+    setShowPopup(false);
+  };
+
+  // Auto-close popup after 3 seconds
+  useEffect(() => {
+    if (showPopup) {
+      const timer = setTimeout(() => {
+        setShowPopup(false);
+      }, 3000); // 3 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [showPopup]);
 
   // Handle bid submission
   const handleBidSubmit = async (e) => {
@@ -52,9 +99,13 @@ const JobDetails = () => {
       console.log('Bid submission response:', response);
       
       if (response.success) {
-        toast.success('Bid submitted successfully!');
+        // Show success popup with backend message
+        setPopupMessage(response.message || 'Bid submitted successfully.');
+        setShowPopup(true);
         setBidAmount('');
         setCoverLetter('');
+        // Refresh user bid status
+        await checkUserBid();
         // Refresh job data to show updated status
         const fetchJob = async () => {
           try {
@@ -315,56 +366,108 @@ const JobDetails = () => {
               </div>
 
               {/* Bid Form - Only for freelancers */}
-              {console.log('Bid form visibility check:', { userRole: user?.role, jobId: job?._id, jobExists: !!job })}
+              {console.log('Bid form visibility check:', { userRole: user?.role, jobId: job?._id, jobExists: !!job, userBid })}
               {user?.role === 'freelancer' && job && (
                 <div className="border-t pt-8">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Submit Your Proposal</h2>
-                  <form onSubmit={handleBidSubmit} className="space-y-4">
-                    <div>
-                      <label htmlFor="bidAmount" className="block text-sm font-medium text-gray-700 mb-2">
-                        Your Bid Amount ($)
-                      </label>
-                      <input
-                        type="number"
-                        id="bidAmount"
-                        value={bidAmount}
-                        onChange={(e) => setBidAmount(e.target.value)}
-                        placeholder="Enter your bid amount"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        required
-                        min="1"
-                        step="0.01"
-                      />
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                    {userBid ? 'Your Bid Status' : 'Submit Your Proposal'}
+                  </h2>
+                  
+                  {userBid ? (
+                    // Show existing bid status
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-blue-900">Bid Submitted</h3>
+                          <p className="text-blue-700">You have already placed a bid on this job</p>
+                        </div>
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          userBid.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                          userBid.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {userBid.status.charAt(0).toUpperCase() + userBid.status.slice(1)}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <span className="text-sm text-gray-600">Bid Amount:</span>
+                          <span className="ml-2 font-semibold text-gray-900">${userBid.bidAmount}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-600">Submitted:</span>
+                          <span className="ml-2 text-gray-900">
+                            {new Date(userBid.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {userBid.coverLetter && (
+                          <div>
+                            <span className="text-sm text-gray-600">Cover Letter:</span>
+                            <p className="mt-1 text-gray-900 bg-white p-3 rounded border border-gray-200">
+                              {userBid.coverLetter}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="mt-4 p-3 bg-blue-100 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          {userBid.status === 'pending' && 'Your bid is under review. You will be notified when the recruiter makes a decision.'}
+                          {userBid.status === 'accepted' && 'Congratulations! Your bid has been accepted. Contact the recruiter for next steps.'}
+                          {userBid.status === 'rejected' && 'Your bid was not selected for this position.'}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <label htmlFor="coverLetter" className="block text-sm font-medium text-gray-700 mb-2">
-                        Cover Letter
-                      </label>
-                      <textarea
-                        id="coverLetter"
-                        value={coverLetter}
-                        onChange={(e) => setCoverLetter(e.target.value)}
-                        rows="6"
-                        placeholder="Explain why you're the best fit for this job..."
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        required
-                      ></textarea>
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={isSubmittingBid}
-                      className="w-full flex items-center justify-center px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors duration-200 disabled:opacity-75"
-                    >
-                      {isSubmittingBid ? (
-                        'Submitting...'
-                      ) : (
-                        <>
-                          <Send className="w-5 h-5 mr-2" />
-                          Submit Proposal
-                        </>
-                      )}
-                    </button>
-                  </form>
+                  ) : (
+                    // Show bid form
+                    <form onSubmit={handleBidSubmit} className="space-y-4">
+                      <div>
+                        <label htmlFor="bidAmount" className="block text-sm font-medium text-gray-700 mb-2">
+                          Your Bid Amount ($)
+                        </label>
+                        <input
+                          type="number"
+                          id="bidAmount"
+                          value={bidAmount}
+                          onChange={(e) => setBidAmount(e.target.value)}
+                          placeholder="Enter your bid amount"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          required
+                          min="1"
+                          step="0.01"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="coverLetter" className="block text-sm font-medium text-gray-700 mb-2">
+                          Cover Letter
+                        </label>
+                        <textarea
+                          id="coverLetter"
+                          value={coverLetter}
+                          onChange={(e) => setCoverLetter(e.target.value)}
+                          rows="6"
+                          placeholder="Explain why you're the best fit for this job..."
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          required
+                        ></textarea>
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={isSubmittingBid}
+                        className="w-full flex items-center justify-center px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors duration-200 disabled:opacity-75"
+                      >
+                        {isSubmittingBid ? (
+                          'Submitting...'
+                        ) : (
+                          <>
+                            <Send className="w-5 h-5 mr-2" />
+                            Submit Proposal
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -408,6 +511,13 @@ const JobDetails = () => {
           </div>
         </div>
       </div>
+      
+      {/* Success Popup */}
+      <SimplePopup 
+        show={showPopup}
+        message={popupMessage}
+        onClose={handleClosePopup}
+      />
     </div>
   );
 };

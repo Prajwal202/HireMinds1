@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getRecruiterBids,
   getJobBids,
+  getFreelancerBids,
   createBid,
   acceptBid,
   rejectBid
@@ -17,6 +18,7 @@ router.get('/recruiter', getRecruiterBids);
 router.get('/job/:jobId', getJobBids);
 
 // Freelancer routes
+router.get('/freelancer', getFreelancerBids);
 router.post('/', createBid);
 
 // Bid actions (recruiter only)

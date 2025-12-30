@@ -15,7 +15,7 @@ import {
   User
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { freelancerAPI } from '../api';
+import { freelancerAPI, bidAPI } from '../api';
 
 const FreelancerDashboard = () => {
   const { user } = useAuth();
@@ -50,6 +50,7 @@ const FreelancerDashboard = () => {
     },
   ]);
   const [recentJobs, setRecentJobs] = useState([]);
+  const [bids, setBids] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load dashboard data
@@ -59,11 +60,23 @@ const FreelancerDashboard = () => {
 
   const loadDashboardData = async () => {
     try {
-      const [statsData, jobsData] = await Promise.all([
+      const [statsData, jobsData, bidsData] = await Promise.all([
         freelancerAPI.getStats(),
         // Add API call for recent jobs when available
-        Promise.resolve([]) // Placeholder for jobs API
+        Promise.resolve([]), // Placeholder for jobs API
+        bidAPI.getFreelancerBids().catch(err => {
+          console.error('Error fetching freelancer bids:', err);
+          return { success: false, data: [] };
+        })
       ]);
+
+      if (bidsData && bidsData.success) {
+        console.log('Freelancer bids data:', bidsData.data);
+        setBids(bidsData.data);
+      } else {
+        console.log('Bids data not successful or missing');
+        setBids([]);
+      }
 
       if (statsData) {
         setStats([
@@ -313,6 +326,82 @@ const FreelancerDashboard = () => {
               </motion.div>
             ))}
           </div>
+        </motion.div>
+
+        {/* Recent Bids */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+          className="bg-white rounded-xl shadow-md p-6"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Your Bids</h2>
+            <div className="text-sm text-gray-500">
+              {bids.length} bid{bids.length !== 1 ? 's' : ''} submitted
+            </div>
+          </div>
+
+          {bids.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <DollarSign className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p>No bids submitted yet</p>
+              <p className="text-sm mt-2">Start bidding on jobs to see them here</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {bids.filter(bid => bid.job).slice(0, 5).map((bid, index) => (
+                <motion.div
+                  key={bid._id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="font-semibold text-gray-900">{bid.job?.title || 'Unknown Job'}</h4>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          bid.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                          bid.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {bid.status.charAt(0).toUpperCase() + bid.status.slice(1)}
+                        </span>
+                      </div>
+                      
+                      <div className="text-sm text-gray-600 mb-2">
+                        <span className="font-medium">Company:</span> {bid.job?.company || 'Unknown Company'}
+                      </div>
+                      
+                      <div className="flex items-center gap-4 mb-2">
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="w-4 h-4 text-green-600" />
+                          <span className="font-semibold text-gray-900">${bid.bidAmount}</span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Submitted: {new Date(bid.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      <div className="text-sm text-gray-600 line-clamp-2">
+                        {bid.coverLetter}
+                      </div>
+                    </div>
+
+                    <Link
+                      to={bid.job?._id ? `/jobs/${bid.job._id}` : '#'}
+                      className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200"
+                      title={bid.job?._id ? "View Job" : "Job information unavailable"}
+                    >
+                      <Eye className="w-5 h-5" />
+                    </Link>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </motion.div>
       </div>
     </div>
