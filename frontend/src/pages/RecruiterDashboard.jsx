@@ -578,7 +578,7 @@ const RecruiterDashboard = () => {
                         </div>
                         
                         <div className="text-sm text-gray-600 mb-2">
-                          <span className="font-medium">Job:</span> {bid.job.title} at {bid.job.company}
+                          <span className="font-medium">Job:</span> {bid.job?.title || 'Unknown Job'}{bid.job?.company ? ` at ${bid.job.company}` : ''}
                         </div>
                         
                         <div className="flex items-center gap-4 mb-2">
@@ -616,9 +616,9 @@ const RecruiterDashboard = () => {
                           </>
                         )}
                         <Link
-                          to={`/jobs/${bid.job._id}`}
+                          to={bid.job?._id ? `/jobs/${bid.job._id}` : '#'}
                           className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200"
-                          title="View Job"
+                          title={bid.job?._id ? "View Job" : "Job information unavailable"}
                         >
                           <Eye className="w-5 h-5" />
                         </Link>
