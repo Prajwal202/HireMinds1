@@ -73,10 +73,18 @@ exports.getProjectDetails = async (req, res, next) => {
       return next(new ErrorResponse('Project not found', 404));
     }
 
+    // Debug logging
+    console.log('Project access check:');
+    console.log('Project ID:', project._id);
+    console.log('Posted by:', project.postedBy._id);
+    console.log('Allocated to:', project.allocatedTo?._id);
+    console.log('Req user ID:', req.user.id);
+    console.log('Req user role:', req.user.role);
+
     // Check if user is authorized to view this project
     if (
       project.postedBy._id.toString() !== req.user.id &&
-      project.allocatedTo?._id.toString() !== req.user.id
+      project.allocatedTo?._id?.toString() !== req.user.id
     ) {
       return next(new ErrorResponse('Not authorized to view this project', 403));
     }
@@ -86,6 +94,7 @@ exports.getProjectDetails = async (req, res, next) => {
       data: project
     });
   } catch (error) {
+    console.error('Error getting project details:', error);
     next(error);
   }
 };
@@ -108,9 +117,19 @@ exports.updateProjectProgress = async (req, res, next) => {
       return next(new ErrorResponse('Project not found', 404));
     }
 
+    // Debug logging
+    console.log('Project allocation check:');
+    console.log('Project allocatedTo:', project.allocatedTo);
+    console.log('Req user ID:', req.user.id);
+    console.log('User role:', req.user.role);
+
     // Check if project is allocated to this freelancer
+    if (!project.allocatedTo) {
+      return next(new ErrorResponse('Project is not allocated to any freelancer', 403));
+    }
+
     if (project.allocatedTo.toString() !== req.user.id) {
-      return next(new ErrorResponse('Not authorized to update this project', 403));
+      return next(new ErrorResponse('Not authorized to update this project. This project is allocated to another freelancer.', 403));
     }
 
     // Check if project is completed
@@ -130,14 +149,26 @@ exports.updateProjectProgress = async (req, res, next) => {
 
     await project.save();
 
-    res.status(200).json({
+    console.log('Project updated successfully:');
+    console.log('New progress level:', project.progressLevel);
+    console.log('New completion percentage:', project.completionPercentage);
+    console.log('New project status:', project.projectStatus);
+
+    const responseData = {
       success: true,
       progressLevel: project.progressLevel,
       completionPercentage: project.completionPercentage,
       projectStatus: project.projectStatus,
-      message: 'Project progress updated successfully'
-    });
+      message: progressLevel === 5 ? 
+        'Project completed successfully! 🎉' : 
+        'Project progress updated successfully'
+    };
+
+    console.log('Sending response:', responseData);
+
+    res.status(200).json(responseData);
   } catch (error) {
+    console.error('Error updating project progress:', error);
     next(error);
   }
 };

@@ -26,6 +26,7 @@ const ProjectProgress = () => {
   const [updating, setUpdating] = useState(false);
   const [progressLevels, setProgressLevels] = useState({});
   const [selectedLevel, setSelectedLevel] = useState(0);
+  const [justCompleted, setJustCompleted] = useState(false);
 
   useEffect(() => {
     loadProjectDetails();
@@ -73,13 +74,22 @@ const ProjectProgress = () => {
       setUpdating(true);
       const response = await projectAPI.updateProjectProgress(id, selectedLevel);
       if (response.success) {
-        toast.success('Project progress updated successfully');
+        toast.success(response.message || 'Project progress updated successfully');
         setProject(prev => ({
           ...prev,
           progressLevel: response.progressLevel,
           completionPercentage: response.completionPercentage,
           projectStatus: response.projectStatus
         }));
+        
+        // Check if project was just completed
+        if (response.progressLevel === 5) {
+          setJustCompleted(true);
+          // Redirect after a delay to show success
+          setTimeout(() => {
+            navigate(`/projects/${id}`);
+          }, 3000);
+        }
       }
     } catch (error) {
       console.error('Error updating progress:', error);
@@ -134,6 +144,73 @@ const ProjectProgress = () => {
   const canUpdateProgress = user.role === 'freelancer' && 
                            project.allocatedTo?._id === user.id && 
                            project.progressLevel < 5;
+
+  // Show completion success screen if project was just completed
+  if (justCompleted || project.progressLevel >= 5) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto px-4">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"
+          >
+            <CheckCircle className="w-10 h-10 text-green-600" />
+          </motion.div>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-2xl font-bold text-gray-900 mb-4"
+          >
+            Project Completed! 🎉
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-gray-600 mb-6"
+          >
+            Congratulations! You have successfully completed this project. 
+            The project status has been updated to 100% completion.
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="space-y-3"
+          >
+            <Link
+              to={`/projects/${id}`}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+            >
+              <Target className="w-5 h-5" />
+              View Project Details
+            </Link>
+            <div>
+              <Link
+                to="/freelancer/dashboard"
+                className="text-gray-600 hover:text-gray-700 text-sm"
+              >
+                Back to Dashboard
+              </Link>
+            </div>
+          </motion.div>
+          {!justCompleted && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="text-sm text-gray-500 mt-4"
+            >
+              This project is already completed. No further progress updates are needed.
+            </motion.p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (!canUpdateProgress) {
     return (
