@@ -86,6 +86,7 @@ app.use('/api/v1/recommendations', require('./routes/recommendationRoutes'));
 app.use('/api/v1/admin', require('./routes/adminRoutes'));
 app.use('/api/v1/freelancer', require('./routes/freelancerRoutes'));
 app.use('/api/v1/bids', require('./routes/bidRoutes'));
+app.use('/api/v1/projects', require('./routes/projectRoutes'));
 
 // Test route
 app.get('/api/test', (req, res) => {

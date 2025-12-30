@@ -56,6 +56,34 @@ const jobSchema = new mongoose.Schema(
     },
     closedAt: {
       type: Date
+    },
+    allocatedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    allocatedAt: {
+      type: Date
+    },
+    acceptedBid: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Bid'
+    },
+    progressLevel: {
+      type: Number,
+      min: 0,
+      max: 5,
+      default: 0
+    },
+    completionPercentage: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0
+    },
+    projectStatus: {
+      type: String,
+      enum: ['Not Started', 'Work Started', 'Initial Development', 'Midway Completed', 'Almost Done', 'Completed'],
+      default: 'Not Started'
     }
   },
   {
@@ -67,11 +95,17 @@ const jobSchema = new mongoose.Schema(
 jobSchema.index({ postedBy: 1, status: 1 });
 jobSchema.index({ status: 1, biddingDeadline: 1 });
 jobSchema.index({ createdAt: -1 });
+jobSchema.index({ allocatedTo: 1 });
 
 // Virtual to check if bidding is still open
 jobSchema.virtual('isBiddingOpen').get(function() {
   const now = new Date();
   return (this.status === 'open' || this.status === 'bidding') && now < this.biddingDeadline;
+});
+
+// Virtual to check if job is allocated
+jobSchema.virtual('isAllocated').get(function() {
+  return this.allocatedTo && this.status === 'closed';
 });
 
 module.exports = mongoose.model('Job', jobSchema);

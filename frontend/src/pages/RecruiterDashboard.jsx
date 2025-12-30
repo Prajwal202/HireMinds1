@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -16,10 +16,19 @@ import {
   Edit,
   Trash2,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  Bell,
+  AlertCircle,
+  TrendingDown,
+  Target,
+  Zap,
+  BarChart3,
+  UserCheck,
+  Filter,
+  Search
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { jobAPI, authAPI, bidAPI } from '../api';
+import { jobAPI, authAPI, bidAPI, projectAPI } from '../api';
 import toast from 'react-hot-toast';
 
 const RecruiterDashboard = () => {
@@ -28,13 +37,61 @@ const RecruiterDashboard = () => {
   const location = useLocation();
   const [jobs, setJobs] = useState([]);
   const [bids, setBids] = useState([]);
+  const [activeProjects, setActiveProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const intervalRef = useRef(null);
+
+  // Notification system
+  const addNotification = useCallback((notification) => {
+    setNotifications(prev => [notification, ...prev].slice(0, 5));
+  }, []);
+
+  const removeNotification = useCallback((index) => {
+    setNotifications(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  // Auto-refresh functionality
+  useEffect(() => {
+    if (autoRefresh) {
+      intervalRef.current = setInterval(() => {
+        refreshJobs();
+        fetchBids();
+      }, refreshInterval);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [autoRefresh, refreshInterval]);
+
+  // Toggle auto-refresh
+  const toggleAutoRefresh = useCallback(() => {
+    setAutoRefresh(prev => !prev);
+    if (!autoRefresh) {
+      toast.success('Auto-refresh enabled');
+    } else {
+      toast.success('Auto-refresh disabled');
+    }
+  }, [autoRefresh]);
 
   // Manual refresh function
   const refreshJobs = async () => {
     try {
-      setLoading(true);
+      setIsRefreshing(true);
       console.log('Manual refresh: Fetching jobs from API...');
       // Try getMyJobs first, fallback to getAllJobs if it fails
       let response;
@@ -53,9 +110,23 @@ const RecruiterDashboard = () => {
           console.log('Manual filtered jobs for current user:', response.data);
         }
       }
+      
+      // Check for new bids or status changes
       if (response.success) {
-        setJobs(response.data);
-        toast.success(`Dashboard refreshed! Found ${response.data.length} jobs`);
+        const newJobs = response.data;
+        
+        // Check for new jobs
+        if (jobs.length > 0 && newJobs.length > jobs.length) {
+          addNotification({
+            type: 'info',
+            message: `New job posted: ${newJobs[newJobs.length - 1].title}`,
+            timestamp: new Date()
+          });
+        }
+        
+        setJobs(newJobs);
+        setLastUpdated(new Date());
+        toast.success(`Dashboard refreshed! Found ${newJobs.length} jobs`);
       } else {
         toast.error('Failed to load jobs: ' + (response.message || 'Unknown error'));
       }
@@ -63,7 +134,7 @@ const RecruiterDashboard = () => {
       console.error('Error refreshing jobs:', error);
       toast.error('Failed to refresh jobs');
     } finally {
-      setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -74,14 +145,72 @@ const RecruiterDashboard = () => {
       const response = await bidAPI.getRecruiterBids();
       console.log('Bids response:', response);
       if (response.success) {
-        setBids(response.data);
-        console.log('Bids loaded:', response.data.length);
+        const newBids = response.data;
+        
+        // Check for new bids
+        if (bids.length > 0 && newBids.length > bids.length) {
+          addNotification({
+            type: 'success',
+            message: `New bid received on ${newBids[newBids.length - 1].job?.title || 'a job'}`,
+            timestamp: new Date()
+          });
+        }
+        
+        setBids(newBids);
+        console.log('Bids loaded:', newBids.length);
       }
     } catch (error) {
       console.error('Error fetching bids:', error);
       // Don't show error toast for bids as it's not critical
     }
   };
+
+  // Helper functions
+  const formatTimeAgo = (timestamp) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diff = now - time;
+    
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    return `${days} day${days > 1 ? 's' : ''} ago`;
+  };
+
+  const getTrendIcon = (trend) => {
+    switch (trend) {
+      case 'up':
+        return <TrendingUp className="w-4 h-4 text-green-600" />;
+      case 'down':
+        return <TrendingDown className="w-4 h-4 text-red-600" />;
+      default:
+        return <div className="w-4 h-4" />;
+    }
+  };
+
+  // Filter jobs based on search and status
+  const filteredJobs = jobs.filter(job => {
+    const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         job.company.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || job.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Skeleton loader component
+  const SkeletonCard = () => (
+    <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 animate-pulse">
+      <div className="flex items-center justify-between mb-4">
+        <div className="bg-gray-300 p-3 rounded-lg w-12 h-12"></div>
+      </div>
+      <div className="h-8 bg-gray-300 rounded mb-2 w-16"></div>
+      <div className="h-4 bg-gray-300 rounded mb-2 w-24"></div>
+      <div className="h-3 bg-gray-300 rounded w-20"></div>
+    </div>
+  );
 
   // Test authentication function
   const testAuth = async () => {
@@ -112,34 +241,56 @@ const RecruiterDashboard = () => {
       try {
         setLoading(true);
         console.log('Fetching jobs from API...');
-        // Try getMyJobs first, fallback to getAllJobs if it fails
-        let response;
-        try {
-          response = await jobAPI.getMyJobs();
-          console.log('getMyJobs response:', response);
-        } catch (myJobsError) {
-          console.log('getMyJobs failed, trying getAllJobs:', myJobsError);
-          response = await jobAPI.getAllJobs();
-          console.log('getAllJobs response:', response);
-          // Filter jobs by current user if we got all jobs
-          if (response.success && user) {
-            response.data = response.data.filter(job => 
-              job.postedBy && (job.postedBy._id === user.id || job.postedBy === user.id)
-            );
-            console.log('Filtered jobs for current user:', response.data);
-          }
-        }
+        
+        // Fetch jobs and active projects in parallel
+        const [jobsResponse, projectsResponse] = await Promise.allSettled([
+          (async () => {
+            // Try getMyJobs first, fallback to getAllJobs if it fails
+            let response;
+            try {
+              response = await jobAPI.getMyJobs();
+              console.log('getMyJobs response:', response);
+            } catch (myJobsError) {
+              console.log('getMyJobs failed, trying getAllJobs:', myJobsError);
+              response = await jobAPI.getAllJobs();
+              console.log('getAllJobs response:', response);
+              // Filter jobs by current user if we got all jobs
+              if (response.success && user) {
+                response.data = response.data.filter(job => 
+                  job.postedBy && (job.postedBy._id === user.id || job.postedBy === user.id)
+                );
+                console.log('Filtered jobs for current user:', response.data);
+              }
+            }
+            return response;
+          })(),
+          projectAPI.getRecruiterActiveProjects().catch(err => {
+            console.log('Failed to fetch active projects:', err);
+            return { success: false, data: [] };
+          })
+        ]);
+
+        // Process jobs response
+        const response = jobsResponse.status === 'fulfilled' ? jobsResponse.value : null;
         console.log('Final API response:', response);
-        if (response.success) {
+        if (response && response.success) {
           console.log('Jobs data:', response.data);
           setJobs(response.data);
         } else {
           console.log('API response not successful:', response);
-          toast.error('Failed to load jobs: ' + (response.message || 'Unknown error'));
+          toast.error('Failed to load jobs: ' + (response?.message || 'Unknown error'));
+        }
+
+        // Process projects response
+        const projectsData = projectsResponse.status === 'fulfilled' ? projectsResponse.value : null;
+        if (projectsData && projectsData.success) {
+          setActiveProjects(projectsData.data);
+        } else {
+          setActiveProjects([]);
         }
       } catch (error) {
-        console.error('Error fetching jobs:', error);
-        toast.error('Failed to load your jobs');
+        console.error('Error fetching data:', error);
+        toast.error('Failed to load your data');
       } finally {
         setLoading(false);
       }
@@ -156,7 +307,7 @@ const RecruiterDashboard = () => {
     }
   }, [user, refreshKey]);
 
-  // Calculate stats from actual jobs
+  // Calculate stats from actual jobs and projects
   const stats = [
     {
       icon: <Briefcase className="w-6 h-6" />,
@@ -167,12 +318,9 @@ const RecruiterDashboard = () => {
     },
     {
       icon: <Users className="w-6 h-6" />,
-      label: 'Open for Bidding',
-      value: jobs.filter(j => {
-        if (!j.biddingDeadline) return false;
-        return (j.status === 'open' || j.status === 'bidding') && new Date(j.biddingDeadline) > new Date();
-      }).length.toString(),
-      change: 'Jobs accepting bids',
+      label: 'Active Projects',
+      value: activeProjects.length.toString(),
+      change: 'Currently in progress',
       color: 'bg-green-500',
     },
     {
@@ -216,16 +364,21 @@ const RecruiterDashboard = () => {
 
   // Handle accept bid
   const handleAcceptBid = async (bidId) => {
-    if (!window.confirm('Are you sure you want to accept this bid? This will reject all other bids for this job.')) {
+    if (!window.confirm('Are you sure you want to accept this bid? This will allocate the job to the freelancer and reject all other bids.')) {
       return;
     }
 
     try {
       const response = await bidAPI.acceptBid(bidId);
       if (response.success) {
-        toast.success('Bid accepted successfully!');
+        toast.success(response.message || 'Bid accepted successfully! Job allocated to freelancer.');
         fetchBids(); // Refresh bids
         refreshJobs(); // Refresh jobs to update status
+        addNotification({
+          type: 'success',
+          message: `Job allocated to ${response.data.freelancer.name}`,
+          timestamp: new Date()
+        });
       }
     } catch (error) {
       console.error('Error accepting bid:', error);
@@ -336,43 +489,165 @@ const RecruiterDashboard = () => {
     }
   };
 
+  // Project helper functions
+  const getProjectStatusColor = (status) => {
+    switch (status) {
+      case 'In Progress':
+        return 'bg-blue-100 text-blue-700';
+      case 'Completed':
+        return 'bg-green-100 text-green-700';
+      case 'Not Started':
+        return 'bg-gray-100 text-gray-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getProjectStatusIcon = (status) => {
+    switch (status) {
+      case 'In Progress':
+        return <Clock className="w-4 h-4" />;
+      case 'Completed':
+        return <CheckCircle className="w-4 h-4" />;
+      case 'Not Started':
+        return <XCircle className="w-4 h-4" />;
+      default:
+        return null;
+    }
+  };
+
+  const getProgressColor = (level) => {
+    if (level === 0) return 'bg-gray-500';
+    if (level === 1) return 'bg-blue-500';
+    if (level === 2) return 'bg-indigo-500';
+    if (level === 3) return 'bg-purple-500';
+    if (level === 4) return 'bg-orange-500';
+    if (level === 5) return 'bg-green-500';
+    return 'bg-gray-500';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
+        {/* Enhanced Header with controls */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="mb-8"
         >
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Welcome back, {user?.name || 'Recruiter'}! 👋
-          </h1>
-          <p className="text-gray-600">Manage your job postings and find the best talent.</p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                Welcome back, {user?.name || 'Recruiter'}! 👋
+              </h1>
+              <p className="text-gray-600">Manage your job postings and find the best talent.</p>
+              {lastUpdated && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Last updated: {formatTimeAgo(lastUpdated)}
+                </p>
+              )}
+            </div>
+            
+            {/* Control Panel */}
+            <div className="flex items-center gap-4">
+              {/* Auto-refresh toggle */}
+              <button
+                onClick={toggleAutoRefresh}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 ${
+                  autoRefresh 
+                    ? 'bg-green-50 border-green-200 text-green-700' 
+                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <RefreshCw className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+                <span className="text-sm font-medium">
+                  {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+                </span>
+              </button>
+              
+              {/* Manual refresh */}
+              <button
+                onClick={refreshJobs}
+                disabled={isRefreshing}
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="text-sm font-medium">Refresh</span>
+              </button>
+              
+              {/* Notifications */}
+              <div className="relative">
+                <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200 relative">
+                  <Bell className="w-5 h-5" />
+                  {notifications.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+                  )}
+                </button>
+                
+                {/* Notifications dropdown */}
+                {notifications.length > 0 && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    <div className="p-4 border-b border-gray-200">
+                      <h3 className="font-semibold text-gray-900">Notifications</h3>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.map((notification, index) => (
+                        <div key={index} className="p-4 border-b border-gray-100 hover:bg-gray-50">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-900">{notification.message}</p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {formatTimeAgo(notification.timestamp)}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => removeNotification(index)}
+                              className="ml-2 text-gray-400 hover:text-gray-600"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </motion.div>
 
-        {/* Stats Grid */}
+        {/* Enhanced Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              whileHover={{ y: -5 }}
-              className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`${stat.color} p-3 rounded-lg text-white`}>
-                  {stat.icon}
+          {loading ? (
+            Array.from({ length: 4 }).map((_, index) => (
+              <SkeletonCard key={index} />
+            ))
+          ) : (
+            stats.map((stat, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
+                className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow duration-200"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`${stat.color} p-3 rounded-lg text-white`}>
+                    {stat.icon}
+                  </div>
+                  {getTrendIcon(stat.trend || 'up')}
                 </div>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</h3>
-              <p className="text-sm text-gray-600 mb-2">{stat.label}</p>
-              <p className="text-xs text-green-600 font-medium">{stat.change}</p>
-            </motion.div>
-          ))}
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</h3>
+                <p className="text-sm text-gray-600 mb-2">{stat.label}</p>
+                <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+                  {stat.change}
+                </p>
+              </motion.div>
+            ))
+          )}
         </div>
 
         {/* Quick Actions */}
@@ -406,7 +681,7 @@ const RecruiterDashboard = () => {
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Job Postings */}
+          {/* Enhanced Recent Job Postings */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -415,38 +690,79 @@ const RecruiterDashboard = () => {
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Recent Job Postings</h2>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={refreshJobs}
-                  disabled={loading}
-                  className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                  title="Refresh"
-                >
-                  <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                </button>
-                <Link to="/jobs" className="text-primary-600 hover:text-primary-700 font-medium">
-                  View All
-                </Link>
+              <div className="text-sm text-gray-500">
+                {filteredJobs.length} of {jobs.length} jobs
               </div>
+            </div>
+
+            {/* Search and Filter Controls */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search jobs..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-gray-500" />
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                >
+                  <option value="all">All Status</option>
+                  <option value="open">Open</option>
+                  <option value="bidding">Bidding</option>
+                  <option value="closed">Closed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              <button
+                onClick={refreshJobs}
+                disabled={loading || isRefreshing}
+                className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                title="Refresh"
+              >
+                <RefreshCw className={`w-5 h-5 ${loading || isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
             </div>
 
             {loading ? (
               <div className="flex justify-center items-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
               </div>
-            ) : recentJobs.length === 0 ? (
+            ) : filteredJobs.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p>No jobs posted yet</p>
-                <Link to="/post-job" className="text-primary-600 hover:text-primary-700 font-medium mt-2 inline-block">
-                  Post your first job
-                </Link>
+                <p className="font-medium">No jobs found</p>
+                <p className="text-sm mt-2">
+                  {searchTerm || filterStatus !== 'all' 
+                    ? 'Try adjusting your search or filters' 
+                    : 'Post your first job to get started'
+                  }
+                </p>
+                {!searchTerm && filterStatus === 'all' && (
+                  <Link 
+                    to="/post-job" 
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 mt-4"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Post Your First Job
+                  </Link>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
-                {recentJobs.map((job, index) => {
+                {filteredJobs.slice(0, 5).map((job, index) => {
                   const isBiddingOpen = job.biddingDeadline && new Date(job.biddingDeadline) > new Date() && (job.status === 'open' || job.status === 'bidding');
                   const timeRemaining = getBiddingTimeRemaining(job.biddingDeadline);
+                  const bidCount = bids.filter(bid => bid.job?._id === job._id).length;
+                  const isAllocated = job.allocatedTo && job.status === 'closed';
+                  const acceptedBid = bids.find(bid => bid._id === job.acceptedBid);
                   
                   return (
                     <motion.div
@@ -454,12 +770,34 @@ const RecruiterDashboard = () => {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.1 }}
-                      className="border border-gray-200 rounded-lg p-4 hover:border-primary-300 hover:shadow-md transition-all duration-200"
+                      className={`border rounded-lg p-4 hover:shadow-md transition-all duration-200 ${
+                        isAllocated ? 'border-green-200 bg-green-50' : 
+                        'border-gray-200'
+                      }`}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1">{job.title}</h3>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
+                            {isAllocated && (
+                              <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium flex items-center gap-1">
+                                <UserCheck className="w-3 h-3" />
+                                Allocated
+                              </span>
+                            )}
+                            {!isAllocated && bidCount > 0 && (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {bidCount} bid{bidCount !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-gray-600">{job.company}</p>
+                          {isAllocated && acceptedBid && (
+                            <p className="text-xs text-green-600 mt-1">
+                              Allocated to: {acceptedBid.freelancer?.name || 'Unknown Freelancer'}
+                            </p>
+                          )}
                         </div>
                         <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
                           {getStatusIcon(job.status)}
@@ -467,7 +805,7 @@ const RecruiterDashboard = () => {
                         </span>
                       </div>
 
-                      {/* Bidding Deadline Info */}
+                      {/* Enhanced Bidding Deadline Info */}
                       {job.biddingDeadline && (
                         <div className={`mb-3 p-2 rounded-lg ${
                           isBiddingOpen ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'
@@ -496,18 +834,18 @@ const RecruiterDashboard = () => {
                         <div className="text-right">
                           <div className="text-xs text-gray-500">Posted</div>
                           <div className="text-sm text-gray-600">
-                            {new Date(job.createdAt).toLocaleDateString()}
+                            {formatTimeAgo(job.createdAt)}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Link
                             to={`/jobs/${job._id || job.id}`}
                             className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200"
-                            title="View"
+                            title="View Details"
                           >
                             <Eye className="w-5 h-5" />
                           </Link>
-                          {(job.status === 'open' || job.status === 'bidding') && (
+                          {(job.status === 'open' || job.status === 'bidding') && !isAllocated && (
                             <>
                               <button
                                 onClick={() => navigate(`/post-job?edit=${job._id || job.id}`)}
@@ -525,16 +863,115 @@ const RecruiterDashboard = () => {
                               </button>
                             </>
                           )}
+                          {isAllocated && (
+                            <button
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200"
+                              title="View Allocated Freelancer"
+                            >
+                              <UserCheck className="w-5 h-5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </motion.div>
                   );
                 })}
+                
+                {filteredJobs.length > 5 && (
+                  <div className="text-center pt-4 border-t border-gray-200">
+                    <Link to="/jobs" className="text-primary-600 hover:text-primary-700 font-medium text-sm">
+                      View all {filteredJobs.length} jobs →
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </motion.div>
 
-          {/* Recent Bids */}
+          {/* Active Projects */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="bg-white rounded-xl shadow-md p-6"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Active Projects</h2>
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-500">
+                  {activeProjects.length} project{activeProjects.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+            </div>
+
+            {activeProjects.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="font-medium">No active projects</p>
+                <p className="text-sm mt-2">Projects will appear here once they are allocated to freelancers</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {activeProjects.map((project, index) => (
+                  <motion.div
+                    key={project._id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    className="border border-gray-200 rounded-lg p-4 hover:border-primary-300 hover:shadow-md transition-all duration-200"
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center justify-between">
+                      <div className="flex-1 mb-4 md:mb-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">{project.title}</h3>
+                            <p className="text-sm text-gray-600">Freelancer: {project.allocatedTo?.name || 'Unknown'}</p>
+                            <p className="text-xs text-gray-500 mt-1">Allocated: {new Date(project.allocatedAt).toLocaleDateString()}</p>
+                          </div>
+                          <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getProjectStatusColor(project.projectStatus)}`}>
+                            {getProjectStatusIcon(project.projectStatus)}
+                            {project.projectStatus}
+                          </span>
+                        </div>
+                        
+                        {/* Progress Bar */}
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                            <span>Progress</span>
+                            <span>{project.completionPercentage}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${getProgressColor(project.progressLevel)}`}
+                              style={{ width: `${project.completionPercentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 md:ml-6">
+                        <div className="text-right">
+                          <div className="text-sm text-gray-600">Budget</div>
+                          <div className="text-lg font-bold text-gray-900">${project.acceptedBid?.bidAmount || 'N/A'}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            to={`/projects/${project._id}`}
+                            className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200"
+                            title="View Details"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+
+          {/* Enhanced Recent Bids */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -543,16 +980,28 @@ const RecruiterDashboard = () => {
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Recent Bids</h2>
-              <div className="text-sm text-gray-500">
-                {bids.length} bid{bids.length !== 1 ? 's' : ''} received
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-500">
+                  {bids.length} bid{bids.length !== 1 ? 's' : ''} received
+                </div>
+                <Link to="/bids" className="text-primary-600 hover:text-primary-700 font-medium">
+                  View All
+                </Link>
               </div>
             </div>
 
             {bids.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <DollarSign className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p>No bids received yet</p>
+                <p className="font-medium">No bids received yet</p>
                 <p className="text-sm mt-2">Freelancers will bid on your job postings here</p>
+                <Link
+                  to="/post-job"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 mt-4"
+                >
+                  <Plus className="w-4 h-4" />
+                  Post a Job
+                </Link>
               </div>
             ) : (
               <div className="space-y-4">
@@ -562,18 +1011,33 @@ const RecruiterDashboard = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3, delay: index * 0.1 }}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    className={`border rounded-lg p-4 hover:shadow-md transition-all duration-200 ${
+                      bid.status === 'accepted' ? 'border-green-200 bg-green-50' :
+                      bid.status === 'rejected' ? 'border-red-200 bg-red-50' :
+                      'border-gray-200'
+                    }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-semibold text-gray-900">{bid.freelancer.name}</h4>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                              <UserCheck className="w-4 h-4 text-primary-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900">{bid.freelancer?.name || 'Unknown Freelancer'}</h4>
+                              <p className="text-xs text-gray-500">Freelancer</p>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
                             bid.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
                             bid.status === 'accepted' ? 'bg-green-100 text-green-700' :
                             'bg-red-100 text-red-700'
                           }`}>
-                            {bid.status}
+                            {bid.status === 'pending' && <Clock className="w-3 h-3" />}
+                            {bid.status === 'accepted' && <CheckCircle className="w-3 h-3" />}
+                            {bid.status === 'rejected' && <XCircle className="w-3 h-3" />}
+                            {bid.status.charAt(0).toUpperCase() + bid.status.slice(1)}
                           </span>
                         </div>
                         
@@ -587,34 +1051,43 @@ const RecruiterDashboard = () => {
                             <span className="font-semibold text-gray-900">${bid.bidAmount}</span>
                           </div>
                           <div className="text-sm text-gray-500">
-                            {new Date(bid.createdAt).toLocaleDateString()}
+                            <Calendar className="w-3 h-3 inline mr-1" />
+                            {formatTimeAgo(bid.createdAt)}
                           </div>
+                          {bid.status === 'accepted' && (
+                            <div className="flex items-center gap-1 text-green-600">
+                              <Zap className="w-3 h-3" />
+                              <span className="text-xs font-medium">Accepted!</span>
+                            </div>
+                          )}
                         </div>
 
-                        <div className="text-sm text-gray-600 line-clamp-2">
+                        <div className="text-sm text-gray-600 line-clamp-2 mb-3">
                           {bid.coverLetter}
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-2 ml-4">
+                        {/* Bid Actions */}
                         {bid.status === 'pending' && (
-                          <>
+                          <div className="flex items-center gap-2 pt-3 border-t border-gray-200">
                             <button
                               onClick={() => handleAcceptBid(bid._id)}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200"
-                              title="Accept Bid"
+                              className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm"
                             >
-                              <CheckCircle className="w-5 h-5" />
+                              <CheckCircle className="w-3 h-3" />
+                              Accept
                             </button>
                             <button
                               onClick={() => handleRejectBid(bid._id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                              title="Reject Bid"
+                              className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 text-sm"
                             >
-                              <XCircle className="w-5 h-5" />
+                              <XCircle className="w-3 h-3" />
+                              Reject
                             </button>
-                          </>
+                          </div>
                         )}
+                      </div>
+
+                      <div className="flex items-center gap-2 ml-4">
                         <Link
                           to={bid.job?._id ? `/jobs/${bid.job._id}` : '#'}
                           className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200"
@@ -622,10 +1095,26 @@ const RecruiterDashboard = () => {
                         >
                           <Eye className="w-5 h-5" />
                         </Link>
+                        {bid.status === 'accepted' && (
+                          <button
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200"
+                            title="Contact Freelancer"
+                          >
+                            <MessageSquare className="w-5 h-5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </motion.div>
                 ))}
+                
+                {bids.length > 5 && (
+                  <div className="text-center pt-4 border-t border-gray-200">
+                    <Link to="/bids" className="text-primary-600 hover:text-primary-700 font-medium text-sm">
+                      View all {bids.length} bids →
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </motion.div>

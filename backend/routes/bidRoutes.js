@@ -6,7 +6,8 @@ const {
   getFreelancerBids,
   createBid,
   acceptBid,
-  rejectBid
+  rejectBid,
+  getAllocatedJobs
 } = require('../controllers/bidController');
 const { protect } = require('../middleware/auth');
 
@@ -19,6 +20,7 @@ router.get('/job/:jobId', getJobBids);
 
 // Freelancer routes
 router.get('/freelancer', getFreelancerBids);
+router.get('/allocated', getAllocatedJobs);
 router.post('/', createBid);
 
 // Bid actions (recruiter only)

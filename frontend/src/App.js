@@ -9,6 +9,8 @@ import Dashboard from './pages/Dashboard';
 import FreelancerDashboard from './pages/FreelancerDashboard';
 import FreelancerProfile from './pages/FreelancerProfile';
 import RecruiterDashboard from './pages/RecruiterDashboard';
+import ProjectDetails from './pages/ProjectDetails';
+import ProjectProgress from './pages/ProjectProgress';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Chat from './pages/Chat';
@@ -32,6 +34,8 @@ function App() {
             <Route path="/freelancer/dashboard" element={<ProtectedRoute><FreelancerDashboard /></ProtectedRoute>} />
             <Route path="/freelancer/profile" element={<ProtectedRoute><FreelancerProfile /></ProtectedRoute>} />
             <Route path="/recruiter/dashboard" element={<ProtectedRoute><RecruiterDashboard /></ProtectedRoute>} />
+            <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetails /></ProtectedRoute>} />
+            <Route path="/projects/:id/progress" element={<ProtectedRoute><ProjectProgress /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/login" element={<Login />} />

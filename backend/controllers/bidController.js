@@ -2,6 +2,7 @@ const Bid = require('../models/Bid');
 const Job = require('../models/Job');
 const User = require('../models/User');
 const ErrorResponse = require('../utils/errorResponse');
+const mongoose = require('mongoose');
 
 // @desc    Get all bids for a recruiter
 // @route   GET /api/v1/bids/recruiter
@@ -151,25 +152,58 @@ exports.acceptBid = async (req, res, next) => {
       return next(new ErrorResponse('Not authorized to accept bids for this job', 401));
     }
 
-    // Update bid status
-    bid.status = 'accepted';
-    await bid.save();
+    // Check if job is already allocated
+    if (job.allocatedTo) {
+      return next(new ErrorResponse('Job has already been allocated to a freelancer', 400));
+    }
 
-    // Reject all other bids for this job
-    await Bid.updateMany(
-      { job: job._id, _id: { $ne: bid._id } },
-      { status: 'rejected' }
-    );
+    // Start a session for transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    const populatedBid = await Bid.findById(bid._id)
-      .populate('freelancer', 'name email')
-      .populate('job', 'title company');
+    try {
+      // Update bid status to accepted
+      bid.status = 'accepted';
+      await bid.save({ session });
 
-    res.status(200).json({
-      success: true,
-      data: populatedBid
-    });
+      // Reject all other bids for this job
+      await Bid.updateMany(
+        { job: job._id, _id: { $ne: bid._id } },
+        { status: 'rejected' },
+        { session }
+      );
+
+      // Allocate the job to the freelancer
+      job.allocatedTo = bid.freelancer;
+      job.allocatedAt = new Date();
+      job.acceptedBid = bid._id;
+      job.status = 'closed';
+      job.closedAt = new Date();
+      await job.save({ session });
+
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      console.log(`Job ${job._id} allocated to freelancer ${bid.freelancer}`);
+
+      const populatedBid = await Bid.findById(bid._id)
+        .populate('freelancer', 'name email')
+        .populate('job', 'title company');
+
+      res.status(200).json({
+        success: true,
+        message: 'Bid accepted and job allocated successfully',
+        data: populatedBid
+      });
+    } catch (transactionError) {
+      // Abort the transaction if something goes wrong
+      await session.abortTransaction();
+      session.endSession();
+      throw transactionError;
+    }
   } catch (error) {
+    console.error('Error accepting bid:', error);
     next(error);
   }
 };
@@ -203,4 +237,49 @@ exports.rejectBid = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+// @desc    Get allocated jobs for a freelancer
+// @route   GET /api/v1/bids/allocated
+// @access  Private (Freelancer only)
+exports.getAllocatedJobs = async (req, res, next) => {
+  try {
+    // Validate user is freelancer
+    if (req.user.role !== 'freelancer') {
+      return next(new ErrorResponse('Only freelancers can view their allocated jobs', 403));
+    }
+
+    // Find accepted bids for this freelancer
+    const acceptedBids = await Bid.find({ 
+      freelancer: req.user.id, 
+      status: 'accepted' 
+    })
+      .populate({
+        path: 'job',
+        populate: {
+          path: 'postedBy',
+          select: 'name email'
+        }
+      })
+      .sort({ updatedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: acceptedBids.length,
+      data: acceptedBids
+    });
+  } catch (error) {
+    console.error('Error fetching allocated jobs:', error);
+    next(error);
+  }
+};
+
+module.exports = {
+  getRecruiterBids: exports.getRecruiterBids,
+  getJobBids: exports.getJobBids,
+  getFreelancerBids: exports.getFreelancerBids,
+  createBid: exports.createBid,
+  acceptBid: exports.acceptBid,
+  rejectBid: exports.rejectBid,
+  getAllocatedJobs: exports.getAllocatedJobs
 };

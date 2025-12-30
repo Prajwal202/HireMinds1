@@ -500,6 +500,86 @@ export const bidAPI = {
       console.error('Error rejecting bid:', error);
       throw error;
     }
+  },
+
+  // Get allocated jobs for freelancer
+  getAllocatedJobs: async () => {
+    try {
+      const response = await API.get('/v1/bids/allocated');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching allocated jobs:', error);
+      throw error;
+    }
+  }
+};
+
+// Project API
+export const projectAPI = {
+  // Get freelancer's active projects
+  getFreelancerActiveProjects: async () => {
+    try {
+      const response = await API.get('/v1/projects/freelancer/active');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching freelancer active projects:', error);
+      throw error;
+    }
+  },
+
+  // Get freelancer's recent projects
+  getFreelancerRecentProjects: async () => {
+    try {
+      const response = await API.get('/v1/projects/freelancer/recent');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching freelancer recent projects:', error);
+      throw error;
+    }
+  },
+
+  // Get project details
+  getProjectDetails: async (projectId) => {
+    try {
+      const response = await API.get(`/v1/projects/${projectId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching project details:', error);
+      throw error;
+    }
+  },
+
+  // Update project progress
+  updateProjectProgress: async (projectId, progressLevel) => {
+    try {
+      const response = await API.put(`/v1/projects/${projectId}/progress`, { progressLevel });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating project progress:', error);
+      throw error;
+    }
+  },
+
+  // Get recruiter's active projects
+  getRecruiterActiveProjects: async () => {
+    try {
+      const response = await API.get('/v1/projects/recruiter/active');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching recruiter active projects:', error);
+      throw error;
+    }
+  },
+
+  // Get progress levels
+  getProgressLevels: async () => {
+    try {
+      const response = await API.get('/v1/projects/progress-levels');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching progress levels:', error);
+      throw error;
+    }
   }
 };
 
