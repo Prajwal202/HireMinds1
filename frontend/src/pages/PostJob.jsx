@@ -239,15 +239,14 @@ const PostJob = () => {
               </p>
             </div>
 
-
             {/* Salary */}
             <div>
               <label htmlFor="salary" className="block text-sm font-medium text-gray-700 mb-2">
-                Salary
+                Salary (INR)
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <DollarSign className="h-5 w-5 text-gray-400" />
+                  <span className="text-gray-500">₹</span>
                 </div>
                 <input
                   type="text"
@@ -256,7 +255,7 @@ const PostJob = () => {
                   value={formData.salary}
                   onChange={handleChange}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
-                  placeholder="e.g., $80,000 - $120,000"
+                  placeholder="e.g., 8,00,000 - 12,00,000"
                 />
               </div>
             </div>

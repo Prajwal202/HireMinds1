@@ -101,6 +101,25 @@ exports.createBid = async (req, res, next) => {
       return next(new ErrorResponse('Job not found', 404));
     }
 
+    // Check if job is still open for bidding
+    if (job.status === 'closed' || job.status === 'cancelled') {
+      console.log('Job is not open for bidding:', job.status);
+      return next(new ErrorResponse('This job is no longer accepting bids', 400));
+    }
+
+    // Check if bidding deadline has passed
+    const now = new Date();
+    if (now > job.biddingDeadline) {
+      console.log('Bidding deadline has passed:', job.biddingDeadline);
+      return next(new ErrorResponse('Bidding deadline has passed for this job', 400));
+    }
+
+    // Check if job is already allocated
+    if (job.allocatedTo) {
+      console.log('Job is already allocated:', job.allocatedTo);
+      return next(new ErrorResponse('This job has already been allocated to a freelancer', 400));
+    }
+
     // Check if freelancer already bid on this job
     const existingBid = await Bid.findOne({ job: jobId, freelancer: req.user.id });
     if (existingBid) {

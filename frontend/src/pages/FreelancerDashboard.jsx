@@ -41,8 +41,8 @@ const FreelancerDashboard = () => {
     {
       icon: <DollarSign className="w-6 h-6" />,
       label: 'Total Earnings',
-      value: '$0',
-      change: '+$0 this month',
+      value: '₹0',
+      change: '+₹0 this month',
       color: 'bg-green-500',
       trend: 'up',
       loading: false

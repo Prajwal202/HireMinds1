@@ -603,7 +603,7 @@ const FreelancerProfile = () => {
                       value={formData.professionalInfo.hourlyRate}
                       onChange={(e) => handleInputChange('professionalInfo', 'hourlyRate', e.target.value)}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                      placeholder="e.g., $75"
+                      placeholder="e.g., ₹750"
                     />
                   ) : (
                     <div className="text-gray-700">{profile.professionalInfo.hourlyRate || 'Not specified'}</div>

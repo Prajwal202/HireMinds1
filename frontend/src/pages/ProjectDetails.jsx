@@ -200,7 +200,7 @@ const ProjectDetails = () => {
                   <DollarSign className="w-5 h-5 text-gray-400" />
                   <div>
                     <h3 className="font-medium text-gray-900">Budget</h3>
-                    <p className="text-gray-600">${project.acceptedBid?.bidAmount || 'N/A'}</p>
+                    <p className="text-gray-600">₹{project.acceptedBid?.bidAmount || 'N/A'}</p>
                   </div>
                 </div>
 

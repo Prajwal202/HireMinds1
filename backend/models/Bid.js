@@ -24,7 +24,7 @@ const bidSchema = new mongoose.Schema({
   coverLetter: {
     type: String,
     required: true,
-    maxlength: 1000
+    maxlength: 5000
   },
   status: {
     type: String,

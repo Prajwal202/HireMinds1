@@ -1,19 +1,16 @@
 /**
  * Format salary string to display in INR
- * @param {string} salary - The salary string (e.g., "$80,000 - $120,000" or "$90,000")
+ * @param {string} salary - The salary string (e.g., "80,000 - 120,000" or "90,000")
  * @returns {string} Formatted salary string in INR
  */
 export const formatSalaryToINR = (salary) => {
-  if (!salary) return 'Not specified';
-  
-  // If it's already in INR format, return as is
-  if (salary.includes('₹') || salary.includes('INR')) {
-    return salary;
+  if (!salary || salary === 'Not specified') {
+    return 'Not specified';
   }
 
   // Handle different salary formats
   try {
-    // Handle range format: "$80,000 - $120,000"
+    // Handle range format: "80,000 - 120,000"
     if (salary.includes('-')) {
       const [min, max] = salary.split('-').map(s => s.trim());
       const formatPart = (part) => {
@@ -24,16 +21,16 @@ export const formatSalaryToINR = (salary) => {
       return `${formatPart(min)} - ${formatPart(max)}`;
     }
     
-    // Handle single amount format: "$90,000"
+    // Handle single amount format: "90,000"
     const amount = parseFloat(salary.replace(/[^0-9.]/g, ''));
     if (!isNaN(amount)) {
       return formatINR(amount);
     }
     
-    return salary; // Return as is if can't parse
+    return salary;
   } catch (error) {
     console.error('Error formatting salary:', error);
-    return salary; // Return original if any error occurs
+    return salary;
   }
 };
 

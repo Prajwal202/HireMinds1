@@ -17,6 +17,7 @@ import {
 import { jobAPI, bidAPI } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import SimplePopup from '../components/SimplePopup';
+import { formatSalaryToINR } from '../utils/currency';
 import toast from 'react-hot-toast';
 
 const JobDetails = () => {
@@ -316,7 +317,7 @@ const JobDetails = () => {
                     <DollarSign className="w-5 h-5 mr-1" />
                     <span className="font-semibold">Salary</span>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">{job.salary || 'Not specified'}</div>
+                  <div className="text-2xl font-bold text-gray-900">{formatSalaryToINR(job.salary) || 'Not specified'}</div>
                 </div>
                 <div>
                   <div className="flex items-center text-blue-600 mb-1">
@@ -366,14 +367,50 @@ const JobDetails = () => {
               </div>
 
               {/* Bid Form - Only for freelancers */}
-              {console.log('Bid form visibility check:', { userRole: user?.role, jobId: job?._id, jobExists: !!job, userBid })}
-              {user?.role === 'freelancer' && job && (
+              {console.log('Bid form visibility check:', { 
+                userRole: user?.role, 
+                jobId: job?._id, 
+                jobExists: !!job, 
+                userBid,
+                jobStatus: job?.status,
+                biddingDeadline: job?.biddingDeadline,
+                now: new Date(),
+                deadlinePassed: job?.biddingDeadline ? new Date() > new Date(job.biddingDeadline) : 'N/A'
+              })}
+              {user?.role === 'freelancer' && job && job.status !== 'closed' && job.status !== 'cancelled' && (
                 <div className="border-t pt-8">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    {userBid ? 'Your Bid Status' : 'Submit Your Proposal'}
-                  </h2>
-                  
-                  {userBid ? (
+                  {/* Check if bidding deadline has passed */}
+                  {job.biddingDeadline && new Date() > new Date(job.biddingDeadline) ? (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                          <span className="text-yellow-600">⏰</span>
+                        </div>
+                        <h3 className="text-lg font-semibold text-yellow-900">Bidding Closed</h3>
+                      </div>
+                      <p className="text-yellow-800">
+                        The bidding deadline for this job has passed. No more bids are being accepted.
+                      </p>
+                    </div>
+                  ) : job.allocatedTo ? (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                          <span className="text-green-600">✓</span>
+                        </div>
+                        <h3 className="text-lg font-semibold text-green-900">Job Allocated</h3>
+                      </div>
+                      <p className="text-green-800">
+                        This job has already been allocated to a freelancer.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                        {userBid ? 'Your Bid Status' : 'Submit Your Proposal'}
+                      </h2>
+                      
+                      {userBid ? (
                     // Show existing bid status
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
                       <div className="flex items-center justify-between mb-4">
@@ -393,7 +430,7 @@ const JobDetails = () => {
                       <div className="space-y-3">
                         <div>
                           <span className="text-sm text-gray-600">Bid Amount:</span>
-                          <span className="ml-2 font-semibold text-gray-900">${userBid.bidAmount}</span>
+                          <span className="ml-2 font-semibold text-gray-900">₹{userBid.bidAmount}</span>
                         </div>
                         <div>
                           <span className="text-sm text-gray-600">Submitted:</span>
@@ -424,19 +461,22 @@ const JobDetails = () => {
                     <form onSubmit={handleBidSubmit} className="space-y-4">
                       <div>
                         <label htmlFor="bidAmount" className="block text-sm font-medium text-gray-700 mb-2">
-                          Your Bid Amount ($)
+                          Your Bid Amount (₹)
                         </label>
                         <input
                           type="number"
                           id="bidAmount"
                           value={bidAmount}
                           onChange={(e) => setBidAmount(e.target.value)}
-                          placeholder="Enter your bid amount"
+                          placeholder="Enter your bid amount in INR"
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                           required
                           min="1"
                           step="0.01"
                         />
+                        <div className="text-xs text-gray-500 mt-1">
+                          Enter amount in Indian Rupees (₹)
+                        </div>
                       </div>
                       <div>
                         <label htmlFor="coverLetter" className="block text-sm font-medium text-gray-700 mb-2">
@@ -450,7 +490,11 @@ const JobDetails = () => {
                           placeholder="Explain why you're the best fit for this job..."
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                           required
+                          maxLength="5000"
                         ></textarea>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {coverLetter.length}/5000 characters
+                        </div>
                       </div>
                       <button
                         type="submit"
@@ -467,6 +511,8 @@ const JobDetails = () => {
                         )}
                       </button>
                     </form>
+                  )}
+                    </>
                   )}
                 </div>
               )}

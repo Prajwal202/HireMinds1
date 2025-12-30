@@ -28,7 +28,8 @@ import {
   Search
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { jobAPI, authAPI, bidAPI, projectAPI } from '../api';
+import { jobAPI, bidAPI, authAPI, projectAPI } from '../api';
+import { formatSalaryToINR } from '../utils/currency';
 import toast from 'react-hot-toast';
 
 const RecruiterDashboard = () => {
@@ -829,7 +830,7 @@ const RecruiterDashboard = () => {
                       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                         <div>
                           <div className="text-xs text-gray-500">Salary</div>
-                          <div className="text-sm font-semibold text-gray-900">{job.salary || 'Not specified'}</div>
+                          <div className="text-sm font-semibold text-gray-900">{formatSalaryToINR(job.salary) || 'Not specified'}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-xs text-gray-500">Posted</div>
