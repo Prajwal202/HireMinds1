@@ -83,7 +83,7 @@ const ProjectProgress = () => {
         }));
         
         // Check if project was just completed
-        if (response.progressLevel === 5) {
+        if (response.progressLevel === 4) {
           setJustCompleted(true);
           // Redirect after a delay to show success
           setTimeout(() => {
@@ -100,22 +100,20 @@ const ProjectProgress = () => {
   };
 
   const getProgressColor = (level) => {
-    if (level === 0) return 'bg-gray-500';
-    if (level === 1) return 'bg-blue-500';
-    if (level === 2) return 'bg-indigo-500';
-    if (level === 3) return 'bg-purple-500';
-    if (level === 4) return 'bg-orange-500';
-    if (level === 5) return 'bg-green-500';
+    if (level === 0) return 'bg-blue-500';
+    if (level === 1) return 'bg-indigo-500';
+    if (level === 2) return 'bg-purple-500';
+    if (level === 3) return 'bg-orange-500';
+    if (level === 4) return 'bg-green-500';
     return 'bg-gray-500';
   };
 
   const getProgressBgColor = (level) => {
-    if (level === 0) return 'bg-gray-100 border-gray-200';
-    if (level === 1) return 'bg-blue-50 border-blue-200';
-    if (level === 2) return 'bg-indigo-50 border-indigo-200';
-    if (level === 3) return 'bg-purple-50 border-purple-200';
-    if (level === 4) return 'bg-orange-50 border-orange-200';
-    if (level === 5) return 'bg-green-50 border-green-200';
+    if (level === 0) return 'bg-blue-50 border-blue-200';
+    if (level === 1) return 'bg-indigo-50 border-indigo-200';
+    if (level === 2) return 'bg-purple-50 border-purple-200';
+    if (level === 3) return 'bg-orange-50 border-orange-200';
+    if (level === 4) return 'bg-green-50 border-green-200';
     return 'bg-gray-100 border-gray-200';
   };
 
@@ -143,10 +141,10 @@ const ProjectProgress = () => {
 
   const canUpdateProgress = user.role === 'freelancer' && 
                            project.allocatedTo?._id === user.id && 
-                           project.progressLevel < 5;
+                           project.progressLevel < 4;
 
   // Show completion success screen if project was just completed
-  if (justCompleted || project.progressLevel >= 5) {
+  if (justCompleted || project.progressLevel >= 4) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
@@ -306,7 +304,7 @@ const ProjectProgress = () => {
               const isCurrent = levelNum === project.progressLevel;
               const isSelected = levelNum === selectedLevel;
               const isDisabled = levelNum <= project.progressLevel;
-              const isCompleted = levelNum === 5;
+              const isCompleted = levelNum === 4;
 
               return (
                 <div

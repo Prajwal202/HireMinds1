@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { adminAPI } from '../api';
-import { Users, Briefcase, TrendingUp, UserPlus, FileText, Trash2, Edit, Shield } from 'lucide-react';
+import { Users, Briefcase, TrendingUp, UserPlus, FileText, Trash2, Edit, Shield, DollarSign, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const AdminDashboard = () => {
@@ -150,6 +151,16 @@ const AdminDashboard = () => {
               }`}
             >
               Jobs
+            </button>
+            <button
+              onClick={() => setActiveTab('payments')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'payments'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Payments
             </button>
           </nav>
         </div>
@@ -339,6 +350,78 @@ const AdminDashboard = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Payments Tab */}
+        {activeTab === 'payments' && (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Payment Management</h2>
+              <p className="text-sm text-gray-600 mt-1">Manage all platform payments and freelancer payouts</p>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-blue-900 mb-2">Quick Actions</h3>
+                  <div className="space-y-2">
+                    <Link
+                      to="/admin/payments"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                    >
+                      <DollarSign className="w-4 h-4" />
+                      Manage All Payments
+                    </Link>
+                    <Link
+                      to="/admin/payments"
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
+                    >
+                      <Users className="w-4 h-4" />
+                      Verify Payouts
+                    </Link>
+                  </div>
+                </div>
+                
+                <div className="bg-green-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-green-900 mb-2">Payment Stats</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total Volume:</span>
+                      <span className="font-semibold">View Details</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Released:</span>
+                      <span className="font-semibold text-green-600">View Details</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Pending:</span>
+                      <span className="font-semibold text-orange-600">View Details</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-purple-900 mb-2">Recent Activity</h3>
+                  <p className="text-sm text-gray-600">View recent payment transactions, releases, and verification activities in the detailed payment management panel.</p>
+                  <Link
+                    to="/admin/payments"
+                    className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700 text-sm font-medium mt-2"
+                  >
+                    View All Activity →
+                  </Link>
+                </div>
+              </div>
+              
+              <div className="text-center">
+                <Link
+                  to="/admin/payments"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium"
+                >
+                  <CreditCard className="w-5 h-5" />
+                  Open Payment Management
+                </Link>
+              </div>
             </div>
           </div>
         )}

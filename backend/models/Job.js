@@ -25,6 +25,11 @@ const jobSchema = new mongoose.Schema(
       type: String,
       default: 'Not specified',
     },
+    budget: {
+      type: Number,
+      required: false,
+      min: [0, 'Budget must be a positive number']
+    },
     type: {
       type: String,
       enum: ['Full-time', 'Part-time', 'Contract', 'Internship'],
@@ -71,7 +76,7 @@ const jobSchema = new mongoose.Schema(
     progressLevel: {
       type: Number,
       min: 0,
-      max: 5,
+      max: 4,
       default: 0
     },
     completionPercentage: {
@@ -82,8 +87,8 @@ const jobSchema = new mongoose.Schema(
     },
     projectStatus: {
       type: String,
-      enum: ['Not Started', 'Work Started', 'Initial Development', 'Midway Completed', 'Almost Done', 'Completed'],
-      default: 'Not Started'
+      enum: ['Work Started', 'Initial Development', 'Midway Completed', 'Almost Done', 'Completed'],
+      default: 'Work Started'
     }
   },
   {

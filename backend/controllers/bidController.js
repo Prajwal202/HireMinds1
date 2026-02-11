@@ -206,6 +206,16 @@ exports.acceptBid = async (req, res, next) => {
 
       console.log(`Job ${job._id} allocated to freelancer ${bid.freelancer}`);
 
+      // Emit socket event for job allocation to enable messaging
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('jobAllocated', {
+          jobId: job._id,
+          recruiterId: job.postedBy.toString(),
+          freelancerId: bid.freelancer.toString()
+        });
+      }
+
       const populatedBid = await Bid.findById(bid._id)
         .populate('freelancer', 'name email')
         .populate('job', 'title company');

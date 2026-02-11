@@ -63,10 +63,26 @@ const ProjectDetails = () => {
       }
     } catch (error) {
       console.error('Error loading progress levels:', error);
+      // Set fallback progress levels to match backend
+      setProgressLevels({
+        0: { status: 'Work Started', percentage: 0 },
+        1: { status: 'Initial Development', percentage: 40 },
+        2: { status: 'Midway Completed', percentage: 60 },
+        3: { status: 'Almost Done', percentage: 80 },
+        4: { status: 'Completed', percentage: 100 }
+      });
     }
   };
 
   const handleProgressUpdate = async () => {
+    console.log('=== UPDATE PROGRESS FRONTEND DEBUG ===');
+    console.log('Update Progress clicked');
+    console.log('Selected level:', selectedLevel);
+    console.log('Current project level:', project.progressLevel);
+    console.log('Project ID:', id);
+    console.log('Project object:', project);
+    console.log('User object:', user);
+    
     if (selectedLevel <= project.progressLevel) {
       toast.error('Cannot move backwards in progress');
       return;
@@ -74,7 +90,12 @@ const ProjectDetails = () => {
 
     try {
       setUpdating(true);
+      console.log('Calling updateProjectProgress API...');
+      console.log('API call parameters:', { projectId: id, progressLevel: selectedLevel });
+      
       const response = await projectAPI.updateProjectProgress(id, selectedLevel);
+      console.log('API response:', response);
+      
       if (response.success) {
         toast.success('Project progress updated successfully');
         setProject(prev => ({
@@ -83,9 +104,16 @@ const ProjectDetails = () => {
           completionPercentage: response.completionPercentage,
           projectStatus: response.projectStatus
         }));
+        console.log('Project updated successfully');
+      } else {
+        console.log('API returned success=false:', response);
+        toast.error(response.message || 'Failed to update progress');
       }
     } catch (error) {
       console.error('Error updating progress:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
       toast.error(error.response?.data?.message || 'Failed to update progress');
     } finally {
       setUpdating(false);
@@ -106,12 +134,11 @@ const ProjectDetails = () => {
   };
 
   const getProgressColor = (level) => {
-    if (level === 0) return 'bg-gray-500';
-    if (level === 1) return 'bg-blue-500';
-    if (level === 2) return 'bg-indigo-500';
-    if (level === 3) return 'bg-purple-500';
-    if (level === 4) return 'bg-orange-500';
-    if (level === 5) return 'bg-green-500';
+    if (level === 0) return 'bg-blue-500';
+    if (level === 1) return 'bg-indigo-500';
+    if (level === 2) return 'bg-purple-500';
+    if (level === 3) return 'bg-orange-500';
+    if (level === 4) return 'bg-green-500';
     return 'bg-gray-500';
   };
 
@@ -260,7 +287,7 @@ const ProjectDetails = () => {
                     const isCurrent = levelNum === project.progressLevel;
                     const isSelected = levelNum === selectedLevel;
                     const isDisabled = levelNum <= project.progressLevel;
-                    const isCompleted = levelNum === 5;
+                    const isCompleted = levelNum === 4 && project.progressLevel === 4;
 
                     return (
                       <div

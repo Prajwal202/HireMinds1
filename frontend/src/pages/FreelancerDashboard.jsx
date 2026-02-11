@@ -484,6 +484,13 @@ const FreelancerDashboard = () => {
             </div>
             <div className="flex gap-4">
               <Link
+                to="/freelancer/payments"
+                className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors duration-200"
+              >
+                <DollarSign className="w-5 h-5 inline mr-2" />
+                View Payments
+              </Link>
+              <Link
                 to="/jobs"
                 className="px-6 py-3 bg-white text-primary-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-200"
               >
