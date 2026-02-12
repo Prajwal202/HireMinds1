@@ -36,7 +36,8 @@ const FreelancerProfile = () => {
       phone: '',
       location: '',
       bio: '',
-      title: 'Full Stack Developer'
+      title: 'Full Stack Developer',
+      upiId: '' // Add UPI ID field
     },
     professionalInfo: {
       experience: '',
@@ -61,7 +62,12 @@ const FreelancerProfile = () => {
   });
 
   // Form inputs for editing
-  const [formData, setFormData] = useState({ ...profile });
+  const [formData, setFormData] = useState(profile);
+
+  // Update formData when profile changes
+  useEffect(() => {
+    setFormData(profile);
+  }, [profile]);
   const [newSkill, setNewSkill] = useState('');
   const [newProject, setNewProject] = useState({
     title: '',
@@ -84,6 +90,8 @@ const FreelancerProfile = () => {
     try {
       setIsLoading(true);
       console.log('=== LOADING PROFILE FROM MONGODB ===');
+      console.log('User ID:', user?.id);
+      console.log('User role:', user?.role);
       
       // Check if user is logged in
       const token = localStorage.getItem('token');
@@ -97,68 +105,115 @@ const FreelancerProfile = () => {
       }
       
       console.log('Making API calls to MongoDB...');
-      const [profileData, statsData] = await Promise.all([
+      const [profileResponse, statsResponse] = await Promise.all([
         freelancerAPI.getProfile(),
         freelancerAPI.getStats()
       ]);
       
-      console.log('MongoDB profile data received:', profileData);
-      console.log('MongoDB stats data received:', statsData);
+      console.log('=== RAW API RESPONSES ===');
+      console.log('Profile response:', profileResponse);
+      console.log('Stats response:', statsResponse);
+      console.log('Profile response type:', typeof profileResponse);
+      console.log('Profile response success:', profileResponse?.success);
+      console.log('Profile response data:', profileResponse?.data);
       
-      setProfile({
-        ...profile,
-        personalInfo: {
-          ...profile.personalInfo,
-          name: profileData.personalInfo?.name || user?.name || '',
-          email: profileData.personalInfo?.email || user?.email || '',
-          phone: profileData.personalInfo?.phone || '',
-          location: profileData.personalInfo?.location || '',
-          bio: profileData.personalInfo?.bio || '',
-          title: profileData.personalInfo?.title || 'Freelancer'
-        },
-        professionalInfo: {
-          experience: profileData.professionalInfo?.experience || '',
-          hourlyRate: profileData.professionalInfo?.hourlyRate || '',
-          availability: profileData.professionalInfo?.availability || 'full-time',
-          languages: profileData.professionalInfo?.languages || ['English'],
-          education: profileData.professionalInfo?.education || '',
-          portfolio: profileData.professionalInfo?.portfolio || '',
-          linkedin: profileData.professionalInfo?.linkedin || '',
-          github: profileData.professionalInfo?.github || ''
-        },
-        skills: profileData.skills || [],
-        projects: profileData.projects || [],
-        stats: statsData || profile.stats,
-        resume: profileData.resume || null,
-        profileImage: profileData.profileImage || null
-      });
-      setFormData({
-        ...profile,
-        personalInfo: {
-          ...profile.personalInfo,
-          name: profileData.personalInfo?.name || user?.name || '',
-          email: profileData.personalInfo?.email || user?.email || '',
-          phone: profileData.personalInfo?.phone || '',
-          location: profileData.personalInfo?.location || '',
-          bio: profileData.personalInfo?.bio || '',
-          title: profileData.personalInfo?.title || 'Freelancer'
-        },
-        professionalInfo: {
-          experience: profileData.professionalInfo?.experience || '',
-          hourlyRate: profileData.professionalInfo?.hourlyRate || '',
-          availability: profileData.professionalInfo?.availability || 'full-time',
-          languages: profileData.professionalInfo?.languages || ['English'],
-          education: profileData.professionalInfo?.education || '',
-          portfolio: profileData.professionalInfo?.portfolio || '',
-          linkedin: profileData.professionalInfo?.linkedin || '',
-          github: profileData.professionalInfo?.github || ''
-        },
-        skills: profileData.skills || [],
-        projects: profileData.projects || [],
-        stats: statsData || profile.stats,
-        resume: profileData.resume || null,
-        profileImage: profileData.profileImage || null
-      });
+      // Extract actual data from response
+      const profileData = profileResponse?.data || profileResponse || {};
+      const statsData = statsResponse?.data || statsResponse || {};
+      
+      console.log('=== EXTRACTED DATA ===');
+      console.log('Profile data:', profileData);
+      console.log('Stats data:', statsData);
+      console.log('Profile data type:', typeof profileData);
+      console.log('Profile data keys:', Object.keys(profileData || {}));
+      console.log('Profile data values:', Object.values(profileData || {}));
+      
+      // Check if data is empty or undefined
+      if (!profileData || Object.keys(profileData || {}).length === 0) {
+        console.log('⚠️ PROFILE DATA IS EMPTY OR UNDEFINED!');
+        console.log('Available keys:', Object.keys(profileData || {}));
+        console.log('Profile data:', profileData);
+        
+        // Use default data if API returns empty
+        const defaultProfile = {
+          personalInfo: {
+            name: user?.name || '',
+            email: user?.email || '',
+            phone: '',
+            location: '',
+            bio: '',
+            title: 'Full Stack Developer',
+            upiId: ''
+          },
+          professionalInfo: {
+            experience: '',
+            hourlyRate: '',
+            availability: 'full-time',
+            languages: ['English'],
+            education: '',
+            portfolio: '',
+            linkedin: '',
+            github: ''
+          },
+          skills: [],
+          projects: [],
+          stats: {
+            completedProjects: 0,
+            totalEarnings: 0,
+            successRate: 0,
+            totalClients: 0
+          },
+          resume: null,
+          profileImage: null
+        };
+        
+        console.log('Using default profile:', defaultProfile);
+        setProfile(defaultProfile);
+        setFormData(defaultProfile);
+      } else {
+        console.log('✅ Profile data loaded successfully');
+        
+        // Merge with default structure to ensure all fields exist
+        const mergedProfile = {
+          personalInfo: {
+            name: profileData.personalInfo?.name || user?.name || '',
+            email: profileData.personalInfo?.email || user?.email || '',
+            phone: profileData.personalInfo?.phone || '',
+            location: profileData.personalInfo?.location || '',
+            bio: profileData.personalInfo?.bio || '',
+            title: profileData.personalInfo?.title || 'Full Stack Developer',
+            upiId: profileData.personalInfo?.upiId || '' // Make sure UPI ID is included
+          },
+          professionalInfo: {
+            experience: profileData.professionalInfo?.experience || '',
+            hourlyRate: profileData.professionalInfo?.hourlyRate || '',
+            availability: profileData.professionalInfo?.availability || 'full-time',
+            languages: profileData.professionalInfo?.languages || ['English'],
+            education: profileData.professionalInfo?.education || '',
+            portfolio: profileData.professionalInfo?.portfolio || '',
+            linkedin: profileData.professionalInfo?.linkedin || '',
+            github: profileData.professionalInfo?.github || ''
+          },
+          skills: profileData.skills || [],
+          projects: profileData.projects || [],
+          stats: statsData || profileData.stats || {
+            completedProjects: 0,
+            totalEarnings: 0,
+            successRate: 0,
+            totalClients: 0
+          },
+          resume: profileData.resume || null,
+          profileImage: profileData.profileImage || null
+        };
+        
+        console.log('Merged profile:', mergedProfile);
+        console.log('UPI ID in merged profile:', mergedProfile.personalInfo.upiId);
+        
+        setProfile(mergedProfile);
+        setFormData(mergedProfile);
+        
+        console.log('Profile and formData set successfully from MongoDB');
+      }
       
       console.log('Profile and formData set successfully from MongoDB');
     } catch (error) {
@@ -314,6 +369,12 @@ const FreelancerProfile = () => {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
+      console.log('=== SAVING FREELANCER PROFILE ===');
+      console.log('Form data being saved:', formData);
+      console.log('UPI ID in form data:', formData.personalInfo.upiId);
+      console.log('UPI ID type:', typeof formData.personalInfo.upiId);
+      console.log('UPI ID length:', formData.personalInfo.upiId?.length);
+      
       // Prepare data for API
       const profileData = {
         personalInfo: formData.personalInfo,
@@ -321,15 +382,34 @@ const FreelancerProfile = () => {
         skills: formData.skills,
         projects: formData.projects
       };
-
-      // Save to MongoDB
-      await freelancerAPI.updateProfile(profileData);
       
-      setProfile(formData);
-      setIsEditing(false);
-      toast.success('Profile updated successfully in MongoDB!');
+      console.log('Profile data being sent to API:', profileData);
+      console.log('UPI ID in profile data:', profileData.personalInfo.upiId);
+      
+      // Save to MongoDB
+      const response = await freelancerAPI.updateProfile(profileData);
+      console.log('API response from updateProfile:', response);
+      console.log('API response status:', response?.success);
+      console.log('API response data:', response?.data);
+      console.log('UPI ID in response data:', response?.data?.personalInfo?.upiId);
+      
+      if (response?.success || response?.data) {
+        setProfile(formData);
+        setIsEditing(false);
+        toast.success('Profile updated successfully in MongoDB!');
+        console.log('✅ Profile saved successfully');
+        console.log('✅ UPI ID should now be:', formData.personalInfo.upiId);
+      } else {
+        console.error('❌ API returned error response:', response);
+        toast.error('Failed to update profile. Please check your connection and try again.');
+      }
+      
     } catch (error) {
-      console.error('Failed to update profile in MongoDB:', error);
+      console.error('❌ Failed to update profile in MongoDB:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
+      console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Error config:', error.config);
+      
       toast.error('Failed to update profile. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
@@ -466,6 +546,7 @@ const FreelancerProfile = () => {
                     value={formData.personalInfo.name}
                     onChange={(e) => handleInputChange('personalInfo', 'name', e.target.value)}
                     className="text-2xl font-bold text-gray-900 border-b-2 border-gray-300 focus:border-primary-500 outline-none pb-1 w-full"
+                    placeholder="Your name"
                   />
                   <input
                     type="text"
@@ -488,26 +569,6 @@ const FreelancerProfile = () => {
                   <p className="text-gray-700">{profile.personalInfo.bio}</p>
                 </div>
               )}
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{profile.stats.completedProjects || 0}</div>
-                <div className="text-sm text-gray-600">Projects Completed</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{profile.stats.successRate || 0}%</div>
-                <div className="text-sm text-gray-600">Success Rate</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">${profile.stats.totalEarnings?.toLocaleString() || '0'}</div>
-                <div className="text-sm text-gray-600">Total Earnings</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{profile.stats.totalClients || 0}</div>
-                <div className="text-sm text-gray-600">Happy Clients</div>
-              </div>
             </div>
           </div>
         </motion.div>
@@ -536,19 +597,28 @@ const FreelancerProfile = () => {
                   <span className="text-gray-700">{profile.personalInfo.email}</span>
                 )}
               </div>
-              <div className="flex items-center gap-3">
-                <Phone className="w-5 h-5 text-gray-400" />
-                {isEditing ? (
-                  <input
-                    type="tel"
-                    value={formData.professionalInfo.phone}
-                    onChange={(e) => handleInputChange('professionalInfo', 'phone', e.target.value)}
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2"
-                    placeholder="Add phone number"
-                  />
-                ) : (
-                  <span className="text-gray-700">{profile.professionalInfo.phone || 'Not provided'}</span>
-                )}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">UPI ID</label>
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={formData.personalInfo.upiId}
+                      onChange={(e) => handleInputChange('personalInfo', 'upiId', e.target.value)}
+                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 outline-none"
+                      placeholder="Enter your UPI ID (e.g., user@upi)"
+                    />
+                  </div>
+                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                <input
+                  type="tel"
+                  value={formData.personalInfo.phone}
+                  onChange={(e) => handleInputChange('personalInfo', 'phone', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 outline-none"
+                  placeholder="Enter your phone number"
+                />
               </div>
               <div className="flex items-center gap-3">
                 <MapPin className="w-5 h-5 text-gray-400" />
@@ -690,169 +760,6 @@ const FreelancerProfile = () => {
                 </button>
               </div>
             )}
-          </div>
-        </motion.div>
-
-        {/* Portfolio Projects */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="bg-white rounded-xl shadow-md p-6 mb-8"
-        >
-          <h3 className="text-xl font-bold text-gray-900 mb-6">Portfolio Projects</h3>
-          <div className="space-y-4">
-            {(isEditing ? formData.projects : profile.projects).map((project) => (
-              <div key={project.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">{project.title}</h4>
-                    <p className="text-gray-600 mb-2">{project.description}</p>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {project.technologies.map((tech, index) => (
-                        <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                          {tech}
-                        </span>
-                      ))}
-                    </div>
-                    {project.link && (
-                      <a href={project.link} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 text-sm">
-                        View Project →
-                      </a>
-                    )}
-                  </div>
-                  {isEditing && (
-                    <button
-                      onClick={() => handleRemoveProject(project.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          {isEditing && (
-            <div className="mt-4 p-4 border border-gray-200 rounded-lg">
-              <h4 className="font-semibold text-gray-900 mb-3">Add New Project</h4>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={newProject.title}
-                  onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="Project title"
-                />
-                <textarea
-                  value={newProject.description}
-                  onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 resize-none"
-                  rows={2}
-                  placeholder="Project description"
-                />
-                <input
-                  type="text"
-                  value={newProject.link}
-                  onChange={(e) => setNewProject({ ...newProject, link: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  placeholder="Project link (optional)"
-                />
-                <button
-                  onClick={handleAddProject}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                >
-                  Add Project
-                </button>
-              </div>
-            </div>
-          )}
-        </motion.div>
-
-        {/* Resume Upload */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
-          className="bg-white rounded-xl shadow-md p-6 mb-8"
-        >
-          <h3 className="text-xl font-bold text-gray-900 mb-6">Resume</h3>
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-            {formData.resume ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-16 h-16 bg-primary-100 rounded-lg flex items-center justify-center">
-                    <FileText className="w-8 h-8 text-primary-600" />
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-700 font-medium mb-2">Current resume: {formData.resume.name}</p>
-                  <p className="text-sm text-gray-500 mb-3">
-                    Size: {(formData.resume.size / 1024 / 1024).toFixed(2)} MB • 
-                    Type: {formData.resume.type || 'Document'}
-                  </p>
-                  <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
-                      ✓ Uploaded
-                    </span>
-                    <span>•</span>
-                    <span>Ready to view</span>
-                  </div>
-                </div>
-                {isEditing && (
-                  <div className="flex gap-2 justify-center">
-                    <button
-                      onClick={() => window.open(URL.createObjectURL(formData.resume), '_blank')}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <FileText className="w-4 h-4 inline mr-2" />
-                      View Resume
-                    </button>
-                    <button
-                      onClick={handleResumeClick}
-                      disabled={isLoading}
-                      className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-75"
-                    >
-                      <Upload className="w-4 h-4 inline mr-2" />
-                      Update
-                    </button>
-                    <button
-                      onClick={() => setFormData(prev => ({ ...prev, resume: null }))}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div>
-                <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <FileText className="w-8 h-8 text-gray-400" />
-                </div>
-                <p className="text-gray-600 mb-4">Upload your resume to showcase your experience</p>
-                <p className="text-sm text-gray-500 mb-4">Accepted formats: PDF, DOC, DOCX (Max 5MB)</p>
-                {isEditing && (
-                  <button
-                    onClick={handleResumeClick}
-                    disabled={isLoading}
-                    className="flex items-center gap-2 mx-auto px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-75"
-                  >
-                    <Upload className="w-5 h-5" />
-                    {isLoading ? 'Uploading...' : 'Upload Resume'}
-                  </button>
-                )}
-              </div>
-            )}
-            {/* Hidden file input */}
-            <input
-              ref={resumeInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx"
-              onChange={handleResumeChange}
-              className="hidden"
-              id="resume-input"
-            />
           </div>
         </motion.div>
       </div>

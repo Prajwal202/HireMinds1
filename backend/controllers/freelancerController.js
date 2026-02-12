@@ -30,17 +30,56 @@ exports.getFreelancerProfile = async (req, res, next) => {
   }
 };
 
+// @desc    Get freelancer profile by ID
+// @route   GET /api/v1/freelancer/profile/:id
+// @access  Private
+exports.getFreelancerProfileById = async (req, res, next) => {
+  try {
+    console.log('=== BACKEND: GETTING FREELANCER PROFILE BY ID ===');
+    console.log('Freelancer ID from params:', req.params.id);
+    
+    const profile = await FreelancerProfile.findOne({ user: req.params.id })
+      .populate('user', 'name email');
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Freelancer profile not found'
+      });
+    }
+
+    console.log('Found freelancer profile:', profile);
+    console.log('UPI ID in profile:', profile.personalInfo?.upiId);
+
+    res.status(200).json({
+      success: true,
+      data: profile
+    });
+  } catch (error) {
+    console.error('Error getting freelancer profile by ID:', error);
+    next(error);
+  }
+};
+
 // @desc    Update freelancer profile
 // @route   PUT /api/v1/freelancer/profile
 // @access  Private
 exports.updateFreelancerProfile = async (req, res, next) => {
   try {
+    console.log('=== BACKEND: UPDATING FREELANCER PROFILE ===');
+    console.log('Request body:', req.body);
+    console.log('UPI ID in request body:', req.body?.personalInfo?.upiId);
+    console.log('User ID:', req.user.id);
+    
     let profile = await FreelancerProfile.findOne({ user: req.user.id });
 
     if (!profile) {
       // Create profile if it doesn't exist
       profile = new FreelancerProfile({ user: req.user.id });
     }
+
+    console.log('Existing profile:', profile);
+    console.log('Existing profile UPI ID:', profile.personalInfo?.upiId);
 
     // Update profile fields
     const {
@@ -51,8 +90,15 @@ exports.updateFreelancerProfile = async (req, res, next) => {
       stats
     } = req.body;
 
+    console.log('Personal info from request:', personalInfo);
+    console.log('UPI ID from personal info:', personalInfo?.upiId);
+
     if (personalInfo) {
+      console.log('Updating personalInfo field...');
+      console.log('Before update - profile.personalInfo:', profile.personalInfo);
       profile.personalInfo = { ...profile.personalInfo, ...personalInfo };
+      console.log('After update - profile.personalInfo:', profile.personalInfo);
+      console.log('UPI ID after update:', profile.personalInfo.upiId);
     }
 
     if (professionalInfo) {
@@ -71,13 +117,20 @@ exports.updateFreelancerProfile = async (req, res, next) => {
       profile.stats = { ...profile.stats, ...stats };
     }
 
+    console.log('Profile before save:', profile);
+    console.log('UPI ID before save:', profile.personalInfo?.upiId);
+
     await profile.save();
+
+    console.log('Profile after save:', profile);
+    console.log('UPI ID after save:', profile.personalInfo?.upiId);
 
     res.status(200).json({
       success: true,
       data: profile
     });
   } catch (error) {
+    console.error('Backend error updating profile:', error);
     next(error);
   }
 };

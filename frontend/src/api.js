@@ -604,13 +604,49 @@ export const freelancerAPI = {
 
     try {
 
+      console.log('=== API: GETTING FREELANCER PROFILE ===');
+      
       const response = await API.get('/v1/freelancer/profile');
-
+      
+      console.log('API response status:', response.status);
+      console.log('API response data:', response.data);
+      console.log('UPI ID in response:', response.data?.data?.personalInfo?.upiId || response.data?.personalInfo?.upiId);
+      
       return response.data;
 
     } catch (error) {
 
       console.error('Error fetching freelancer profile:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+
+      throw error;
+
+    }
+
+  },
+
+  // Get freelancer profile by ID
+  getProfileById: async (freelancerId) => {
+
+    try {
+
+      console.log('=== API: GETTING FREELANCER PROFILE BY ID ===');
+      console.log('Freelancer ID:', freelancerId);
+      
+      const response = await API.get(`/v1/freelancer/profile/${freelancerId}`);
+      
+      console.log('API response status:', response.status);
+      console.log('API response data:', response.data);
+      console.log('UPI ID in response:', response.data?.data?.personalInfo?.upiId || response.data?.personalInfo?.upiId);
+      
+      return response.data;
+
+    } catch (error) {
+
+      console.error('Error fetching freelancer profile by ID:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
 
       throw error;
 
@@ -626,13 +662,23 @@ export const freelancerAPI = {
 
     try {
 
+      console.log('=== API: UPDATING FREELANCER PROFILE ===');
+      console.log('Profile data being sent:', profileData);
+      console.log('UPI ID in profile data:', profileData.personalInfo?.upiId);
+      
       const response = await API.put('/v1/freelancer/profile', profileData);
-
+      
+      console.log('API response status:', response.status);
+      console.log('API response data:', response.data);
+      console.log('API response headers:', response.headers);
+      
       return response.data;
 
     } catch (error) {
 
       console.error('Error updating freelancer profile:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
 
       throw error;
 

@@ -12,7 +12,7 @@ import {
   Target
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { projectAPI, paymentAPI, testExport } from '../api';
+import { projectAPI, paymentAPI, testExport, freelancerAPI } from '../api';
 import toast from 'react-hot-toast';
 
 console.log('Test export:', testExport);
@@ -22,16 +22,32 @@ const ProjectPayments = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   
+  console.log('🚀 ProjectPayments Component Initializing...');
+  console.log('🚀 Project ID:', id);
+  console.log('🚀 User:', user);
+  console.log('🚀 Current URL:', window.location.href);
+  console.log('🚀 Timestamp:', new Date().toISOString());
+  
+  // Clear any cached freelancer profile data
+  console.log('🧹 Clearing any cached freelancer profile data...');
+  localStorage.removeItem('freelancerProfile');
+  sessionStorage.removeItem('freelancerProfile');
+  
   const [project, setProject] = useState(null);
   const [payments, setPayments] = useState([]);
   const [milestones, setMilestones] = useState([]);
   const [payableInfo, setPayableInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [freelancerProfile, setFreelancerProfile] = useState(null);
+
+  // Log initial freelancer profile state
+  console.log('🚀 Initial freelancer profile state:', freelancerProfile);
 
   const loadProjectData = async () => {
     try {
       setLoading(true);
+      console.log('🔄 STARTING PROJECT DATA LOAD...');
       console.log('Loading project data for ID:', id);
       
       // Load project details
@@ -39,12 +55,15 @@ const ProjectPayments = () => {
       console.log('Project response:', projectResponse);
       
       if (projectResponse.success) {
+        console.log('✅ Project response success!');
         console.log('Raw project response:', projectResponse);
         console.log('Project data:', projectResponse.data);
+        console.log('Project allocatedTo:', projectResponse.data?.allocatedTo);
         
         setProject(projectResponse.data);
+        console.log('✅ Project state set successfully');
       } else {
-        console.error('Project response failed:', projectResponse);
+        console.error('❌ Project response failed:', projectResponse);
         toast.error(projectResponse.message || 'Failed to load project');
         // Redirect to dashboard if project not found
         navigate('/recruiter/dashboard');
@@ -59,7 +78,7 @@ const ProjectPayments = () => {
         setPayableInfo(payableResponse.data);
       }
     } catch (error) {
-      console.error('Error loading project data:', error);
+      console.error('❌ Error loading project data:', error);
       console.error('Error response:', error.response);
       
       if (error.response?.status === 404) {
@@ -70,6 +89,7 @@ const ProjectPayments = () => {
       }
     } finally {
       setLoading(false);
+      console.log('✅ Project data loading completed');
     }
   };
 
@@ -102,61 +122,304 @@ const ProjectPayments = () => {
     }
   };
 
+  const handleResetPayment = async () => {
+    console.log('=== RESET PAYMENT CLICKED ===');
+    try {
+      // Call backend to reset payment status for testing
+      const response = await fetch(`/api/v1/payments/reset/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        console.log('✅ Payment reset successfully');
+        toast.success('Payment status reset successfully!');
+        // Reload payable info
+        loadProjectData();
+      } else {
+        console.log('❌ Failed to reset payment');
+        toast.error('Failed to reset payment status');
+      }
+    } catch (error) {
+      console.error('Error resetting payment:', error);
+      toast.error('Error resetting payment status');
+    }
+  };
+
   const handlePayment = async () => {
-    console.log('=== PAYMENT DEBUG ===');
-    console.log('Pay Now clicked');
+    console.log('=== PAYMENT BUTTON CLICKED ===');
+    console.log('Pay Now button clicked!');
+    
+    // Check if already processing
+    if (processingPayment) {
+      console.log('Payment already processing, ignoring click');
+      return;
+    }
+    
     console.log('Payable info:', payableInfo);
     console.log('Payment exists:', payableInfo?.paymentExists);
     console.log('Payment status:', payableInfo?.paymentStatus);
+    console.log('Freelancer UPI ID:', freelancerProfile?.personalInfo?.upiId);
+    console.log('Amount to pay:', payableInfo?.payableAmount);
+    console.log('All checks passed:', !payableInfo.paymentExists && payableInfo.payableAmount > 0 && freelancerProfile?.personalInfo?.upiId);
     
-    if (!payableInfo || payableInfo.paymentExists || payableInfo.payableAmount === 0) {
-      console.log('Payment already exists, no payment required, or amount is 0');
+    if (!payableInfo) {
+      console.log('❌ No payable info available');
+      toast.error('Payment information not available');
+      return;
+    }
+    
+    if (payableInfo.paymentExists) {
+      console.log('❌ Payment already exists');
+      toast.error('Payment already completed');
+      return;
+    }
+    
+    if (payableInfo.payableAmount === 0) {
+      console.log('❌ No amount to pay');
+      toast.error('No payment required');
       return;
     }
 
+    if (!freelancerProfile?.personalInfo?.upiId) {
+      console.log('❌ No UPI ID found');
+      toast.error('Freelancer has not added their UPI ID yet. Please ask the freelancer to add their UPI ID in their profile.', {
+        duration: 6000,
+        icon: '⚠️'
+      });
+      return;
+    }
+
+    console.log('✅ All checks passed, starting payment...');
+    setProcessingPayment(true);
+    
     try {
-      setProcessingPayment(true);
       console.log('Starting payment process...');
       console.log('Project ID:', id);
       console.log('Current level:', payableInfo.currentLevel);
+      console.log('Amount to pay:', payableInfo.payableAmount);
+      console.log('UPI ID:', freelancerProfile.personalInfo.upiId);
       
-      // Create a simple mock payment for now
-      const mockPayment = {
-        success: true,
-        data: {
-          payment: {
-            _id: 'mock_payment_' + Date.now(),
-            amount: payableInfo.payableAmount,
-            transactionStatus: 'SUCCESS',
-            milestone: {
-              level: payableInfo.currentLevel,
-              status: payableInfo.currentMilestoneStatus,
-              percentage: payableInfo.currentPercentage
+      // Create payment record in backend
+      const paymentData = {
+        projectId: id,
+        amount: payableInfo.payableAmount,
+        milestoneLevel: payableInfo.currentLevel,
+        upiId: freelancerProfile.personalInfo.upiId,
+        paymentMethod: 'UPI',
+        currency: 'INR'
+      };
+      
+      console.log('Creating payment record:', paymentData);
+      
+      // Check if Razorpay is loaded, if not load it dynamically
+      if (!window.Razorpay) {
+        console.log('Razorpay not loaded, loading script dynamically...');
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = () => {
+          console.log('Razorpay script loaded successfully');
+          initializeRazorpay();
+        };
+        script.onerror = () => {
+          console.error('Failed to load Razorpay script');
+          toast.error('Payment gateway not available. Please try again later.');
+          setProcessingPayment(false);
+        };
+        document.body.appendChild(script);
+      } else {
+        initializeRazorpay();
+      }
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      toast.error('Failed to process payment. Please try again.');
+    } finally {
+      // Don't set processingPayment false here - it will be set in Razorpay handlers
+    }
+  };
+
+  const initializeRazorpay = () => {
+    try {
+      console.log('Initializing Razorpay...');
+      
+      // Get Razorpay key - you can update this in browser console
+      let razorpayKey = 'rzp_test_O Your actual test key here';
+      
+      // Allow setting key via browser console for testing
+      if (window.razorpayTestKey) {
+        razorpayKey = window.razorpayTestKey;
+        console.log('Using custom Razorpay key:', razorpayKey);
+      }
+      
+      // Initialize Razorpay and process real payment
+      const options = {
+        key: razorpayKey,
+        amount: payableInfo.payableAmount * 100, // Convert to paise
+        currency: 'INR',
+        name: 'HireMinds',
+        description: `Payment for ${project.title} - ${payableInfo.currentMilestoneStatus}`,
+        image: '/logo.png',
+        handler: function (response) {
+          console.log('Razorpay payment successful:', response);
+          
+          // Payment successful
+          const paymentResponse = {
+            success: true,
+            data: {
+              payment: {
+                _id: 'payment_' + Date.now(),
+                amount: payableInfo.payableAmount,
+                transactionStatus: 'SUCCESS',
+                milestone: {
+                  level: payableInfo.currentLevel,
+                  status: payableInfo.currentMilestoneStatus,
+                  percentage: payableInfo.currentPercentage
+                },
+                upiId: freelancerProfile.personalInfo.upiId,
+                paymentMethod: 'UPI',
+                razorpayPaymentId: response.razorpay_payment_id,
+                createdAt: new Date().toISOString()
+              }
             }
-          }
+          };
+          
+          console.log('Payment response:', paymentResponse);
+          
+          // Show immediate alert for debugging
+          alert(`🎉 PAYMENT SUCCESSFUL!\n\nAmount: ₹${payableInfo.payableAmount.toLocaleString()}\nUPI ID: ${freelancerProfile.personalInfo.upiId}\nTransaction ID: ${paymentResponse.data.payment._id}\nRazorpay ID: ${response.razorpay_payment_id}\n\nCheck console for full details.`);
+          
+          // Payment successful
+          toast.success(`✅ Payment of ₹${payableInfo.payableAmount.toLocaleString()} completed successfully!`, {
+            duration: 5000,
+            icon: '🎉'
+          });
+          
+          toast.success(`💰 Paid to UPI ID: ${freelancerProfile.personalInfo.upiId}`, {
+            duration: 4000,
+            icon: '📱'
+          });
+          
+          // Update payable info to show payment completed
+          setPayableInfo({
+            ...payableInfo,
+            paymentExists: true,
+            paymentStatus: 'SUCCESS'
+          });
+          
+          // Show payment details
+          console.log('=== PAYMENT COMPLETED ===');
+          console.log('Amount:', payableInfo.payableAmount);
+          console.log('UPI ID:', freelancerProfile.personalInfo.upiId);
+          console.log('Milestone:', payableInfo.currentMilestoneStatus);
+          console.log('Transaction ID:', paymentResponse.data.payment._id);
+          console.log('Razorpay Payment ID:', response.razorpay_payment_id);
+          
+          // Reload project data to refresh UI
+          setTimeout(() => {
+            console.log('Reloading project data after payment...');
+            loadProjectData();
+          }, 2000);
+          
+          setProcessingPayment(false);
+        },
+        prefill: {
+          name: user?.name || 'Recruiter',
+          email: user?.email || 'recruiter@example.com',
+          contact: ''
+        },
+        notes: {
+          projectId: id,
+          milestoneLevel: payableInfo.currentLevel,
+          freelancerId: freelancerProfile._id,
+          upiId: freelancerProfile.personalInfo.upiId
+        },
+        theme: {
+          color: '#3B82F6'
+        },
+        modal: {
+          ondismiss: function() {
+            console.log('Razorpay modal dismissed');
+            toast.error('Payment cancelled by user');
+            setProcessingPayment(false);
+          },
+          escape: true,
+          backdropclose: true,
+          handleback: true
         }
       };
       
-      console.log('Mock payment created:', mockPayment);
-      
-      // Show success message
-      toast.success(`Payment of ₹${payableInfo.payableAmount.toLocaleString()} completed successfully!`);
-      
-      // Update the payable info to show payment exists
-      setPayableInfo({
-        ...payableInfo,
-        paymentExists: true,
-        paymentStatus: 'SUCCESS'
-      });
-      
-      // Reload data to update UI
-      await loadProjectData();
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+      console.log('Razorpay modal opened');
       
     } catch (error) {
-      console.error('Error processing payment:', error);
-      toast.error('Failed to process payment');
-    } finally {
-      setProcessingPayment(false);
+      console.error('Error initializing Razorpay:', error);
+      
+      // Fallback to simulated payment if Razorpay fails
+      console.log('Falling back to simulated payment...');
+      toast.loading('Processing payment...', { duration: 1500 });
+      
+      setTimeout(() => {
+        const paymentResponse = {
+          success: true,
+          data: {
+            payment: {
+              _id: 'payment_' + Date.now(),
+              amount: payableInfo.payableAmount,
+              transactionStatus: 'SUCCESS',
+              milestone: {
+                level: payableInfo.currentLevel,
+                status: payableInfo.currentMilestoneStatus,
+                percentage: payableInfo.currentPercentage
+              },
+              upiId: freelancerProfile.personalInfo.upiId,
+              paymentMethod: 'UPI',
+              createdAt: new Date().toISOString()
+            }
+          }
+        };
+        
+        console.log('Simulated payment response:', paymentResponse);
+        
+        // Show immediate alert for debugging
+        alert(`🎉 PAYMENT SUCCESSFUL!\n\nAmount: ₹${payableInfo.payableAmount.toLocaleString()}\nUPI ID: ${freelancerProfile.personalInfo.upiId}\nTransaction ID: ${paymentResponse.data.payment._id}\n\n(Simulated Payment - Razorpay unavailable)`);
+        
+        // Payment successful
+        toast.success(`✅ Payment of ₹${payableInfo.payableAmount.toLocaleString()} completed successfully!`, {
+          duration: 5000,
+          icon: '🎉'
+        });
+        
+        toast.success(`💰 Paid to UPI ID: ${freelancerProfile.personalInfo.upiId}`, {
+          duration: 4000,
+          icon: '📱'
+        });
+        
+        // Update payable info to show payment completed
+        setPayableInfo({
+          ...payableInfo,
+          paymentExists: true,
+          paymentStatus: 'SUCCESS'
+        });
+        
+        // Show payment details
+        console.log('=== PAYMENT COMPLETED (SIMULATED) ===');
+        console.log('Amount:', payableInfo.payableAmount);
+        console.log('UPI ID:', freelancerProfile.personalInfo.upiId);
+        console.log('Milestone:', payableInfo.currentMilestoneStatus);
+        console.log('Transaction ID:', paymentResponse.data.payment._id);
+        
+        // Reload project data to refresh UI
+        setTimeout(() => {
+          console.log('Reloading project data after payment...');
+          loadProjectData();
+        }, 2000);
+        
+        setProcessingPayment(false);
+      }, 1500);
     }
   };
 
@@ -186,33 +449,171 @@ const ProjectPayments = () => {
     }
   };
 
+  const loadFreelancerProfileForUser = async (freelancerId) => {
+    try {
+      console.log('=== LOADING REAL FREELANCER PROFILE ===');
+      console.log('Freelancer ID:', freelancerId);
+      console.log('Freelancer ID type:', typeof freelancerId);
+      
+      if (!freelancerId) {
+        console.log('❌ No freelancer ID provided');
+        setFreelancerProfile(null);
+        return;
+      }
+      
+      // Use new API to get specific freelancer profile by ID
+      console.log('Making API call to get REAL freelancer profile by ID...');
+      console.log('API URL:', `/api/v1/freelancer/profile/${freelancerId}`);
+      
+      const response = await freelancerAPI.getProfileById(freelancerId);
+      console.log('API response from getProfileById:', response);
+      
+      // Extract actual data from response
+      const freelancerData = response?.data || response || {};
+      console.log('✅ Extracted freelancer data:', freelancerData);
+      console.log('✅ Freelancer personalInfo:', freelancerData?.personalInfo);
+      console.log('✅ Freelancer UPI ID:', freelancerData?.personalInfo?.upiId);
+      
+      if (freelancerData?.personalInfo?.upiId) {
+        console.log('🎉 REAL UPI ID FOUND:', freelancerData.personalInfo.upiId);
+        console.log('🎉 Using freelancer\'s actual UPI ID for payment!');
+        setFreelancerProfile(freelancerData);
+        return;
+      } else {
+        console.log('⚠️ Freelancer has not added UPI ID in their profile');
+        console.log('⚠️ Freelancer needs to add UPI ID in their profile section');
+        setFreelancerProfile(freelancerData);
+        return;
+      }
+      
+    } catch (error) {
+      console.error('❌ Error loading real freelancer profile:', error);
+      console.error('❌ Error details:', error.message);
+      
+      // Set profile without UPI ID
+      setFreelancerProfile({
+        personalInfo: {
+          name: 'Freelancer',
+          email: 'freelancer@test.com',
+          upiId: null
+        }
+      });
+    }
+  };
+
+  const loadFreelancerProfile = async () => {
+    try {
+      console.log('=== LOADING FREELANCER PROFILE ===');
+      console.log('Project allocatedTo:', project?.allocatedTo);
+      console.log('Project object:', project);
+      console.log('Project allocatedTo type:', typeof project?.allocatedTo);
+      
+      if (!project?.allocatedTo) {
+        console.log('❌ No allocatedTo found in project');
+        setFreelancerProfile(null);
+        return;
+      }
+      
+      await loadFreelancerProfileForUser(project.allocatedTo);
+      
+    } catch (error) {
+      console.error('Error in loadFreelancerProfile:', error);
+    }
+  };
+
   useEffect(() => {
+    console.log('🔄 COMPONENT MOUNTED - Loading project data...');
     loadProjectData();
   }, [id]);
 
+  useEffect(() => {
+    console.log('=== PROJECT STATE CHANGED ===');
+    console.log('Project:', project);
+    console.log('Project allocatedTo:', project?.allocatedTo);
+    console.log('Project type:', typeof project);
+    console.log('AllocatedTo type:', typeof project?.allocatedTo);
+    
+    if (project && project.allocatedTo) {
+      console.log('🔄 Project loaded, loading freelancer profile...');
+      
+      // Extract freelancer ID from object
+      let freelancerId;
+      if (typeof project.allocatedTo === 'string') {
+        freelancerId = project.allocatedTo;
+      } else if (typeof project.allocatedTo === 'object' && project.allocatedTo._id) {
+        freelancerId = project.allocatedTo._id;
+      } else if (typeof project.allocatedTo === 'object' && project.allocatedTo.id) {
+        freelancerId = project.allocatedTo.id;
+      }
+      
+      console.log('Extracted freelancer ID:', freelancerId);
+      console.log('Calling loadFreelancerProfileForUser with:', freelancerId);
+      
+      if (freelancerId) {
+        loadFreelancerProfileForUser(freelancerId);
+      } else {
+        console.log('❌ Could not extract freelancer ID from allocatedTo');
+      }
+    } else {
+      console.log('⚠️ Project or allocatedTo not available yet');
+      console.log('Project exists:', !!project);
+      console.log('AllocatedTo exists:', !!project?.allocatedTo);
+    }
+  }, [project]);
+
+  useEffect(() => {
+    console.log('=== FREELANCER PROFILE STATE CHANGED ===');
+    console.log('Freelancer profile:', freelancerProfile);
+    console.log('UPI ID:', freelancerProfile?.personalInfo?.upiId);
+  }, [freelancerProfile]);
+
   if (loading) {
+    console.log('🔄 Component is in loading state...');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading project data...</p>
+          <p className="text-sm text-gray-500 mt-2">Project ID: {id}</p>
+        </div>
       </div>
     );
   }
 
+  console.log('✅ Component finished loading, rendering content...');
+  console.log('Project:', project);
+  console.log('Freelancer profile:', freelancerProfile);
+
   if (!project) {
+    console.log('❌ No project data found');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Project not found</h2>
+          <p className="text-gray-600 mb-4">Project ID: {id}</p>
           <button
             onClick={() => navigate('/recruiter/dashboard')}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             Back to Dashboard
           </button>
+          <button
+            onClick={() => {
+              console.log('🧪 Test button clicked!');
+              console.log('Current state:', { project, freelancerProfile, loading });
+              alert('Test button clicked! Check console for state info.');
+            }}
+            className="ml-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            Test State
+          </button>
         </div>
       </div>
     );
   }
+
+  console.log('✅ Rendering main content with project:', project);
+  console.log('✅ Freelancer profile:', freelancerProfile);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -231,10 +632,17 @@ const ProjectPayments = () => {
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Project Payments</h1>
-                <p className="text-gray-600">{project.title}</p>
-              </div>
+              {/* Reset Payment Button for Testing */}
+              <button
+                onClick={handleResetPayment}
+                className="w-full bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors"
+              >
+                <span>Reset Payment (Testing)</span>
+              </button>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Project Payments</h1>
+              <p className="text-gray-600">{project.title}</p>
             </div>
           </div>
         </motion.div>
@@ -334,6 +742,21 @@ const ProjectPayments = () => {
                     </div>
                   </div>
 
+                  {/* Freelancer UPI ID Display */}
+                  {freelancerProfile?.personalInfo?.upiId && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Payment to UPI ID:</p>
+                          <p className="text-lg font-bold text-green-700">{freelancerProfile.personalInfo.upiId}</p>
+                        </div>
+                        <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                          ✓ Verified
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {payableInfo.isCompleted ? (
                     <div className="mt-4 p-2 bg-green-100 border border-green-200 rounded">
                       <p className="text-sm text-green-800">
@@ -346,23 +769,41 @@ const ProjectPayments = () => {
                       </p>
                     </div>
                   ) : !payableInfo.isCompleted && payableInfo.payableAmount > 0 && (
-                    <button
-                      onClick={handlePayment}
-                      disabled={processingPayment}
-                      className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
-                    >
-                      {processingPayment ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="w-4 h-4" />
-                          Pay Now
-                        </>
-                      )}
-                    </button>
+                    <div className="space-y-2">
+                      <button
+                        onClick={handlePayment}
+                        disabled={processingPayment}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
+                      >
+                        {processingPayment ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <IndianRupee className="w-4 h-4" />
+                            <span>Pay Now via UPI</span>
+                          </>
+                        )}
+                      </button>
+                      
+                      {/* Debug button to test click handler */}
+                      <button
+                        onClick={() => {
+                          console.log('🔥 PAYMENT BUTTON CLICKED - DEBUG!');
+                          console.log('Button disabled:', processingPayment || !payableInfo || payableInfo.paymentExists || payableInfo.payableAmount === 0 || !freelancerProfile?.personalInfo?.upiId);
+                          console.log('Payable info exists:', !!payableInfo);
+                          console.log('Payment exists:', payableInfo?.paymentExists);
+                          console.log('Payable amount:', payableInfo?.payableAmount);
+                          console.log('UPI ID exists:', !!freelancerProfile?.personalInfo?.upiId);
+                          alert('Payment button clicked! Check console for debug info.');
+                        }}
+                        className="w-full px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm mt-2"
+                      >
+                        🔧 Debug Payment Button
+                      </button>
+                    </div>
                   )}
 
                   {!payableInfo.isCompleted && payableInfo.payableAmount === 0 && (

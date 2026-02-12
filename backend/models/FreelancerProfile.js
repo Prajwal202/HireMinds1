@@ -39,6 +39,11 @@ const freelancerProfileSchema = new mongoose.Schema({
       type: String,
       default: 'Freelancer',
       maxlength: [100, 'Title cannot be more than 100 characters']
+    },
+    upiId: {
+      type: String,
+      default: '',
+      trim: true
     }
   },
   professionalInfo: {

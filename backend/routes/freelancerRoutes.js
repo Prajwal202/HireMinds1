@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getFreelancerProfile,
+  getFreelancerProfileById,
   updateFreelancerProfile,
   uploadResume,
   uploadProfileImage,
@@ -18,6 +19,9 @@ router
   .route('/profile')
   .get(getFreelancerProfile)
   .put(updateFreelancerProfile);
+
+// Get freelancer profile by ID (for payment system)
+router.get('/profile/:id', getFreelancerProfileById);
 
 // Stats route
 router.get('/stats', getFreelancerStats);
