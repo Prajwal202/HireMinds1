@@ -17,7 +17,6 @@ import {
 import { jobAPI, bidAPI } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import SimplePopup from '../components/SimplePopup';
-import { formatSalaryToINR } from '../utils/currency';
 import toast from 'react-hot-toast';
 
 const JobDetails = () => {
@@ -84,6 +83,19 @@ const JobDetails = () => {
     
     if (!bidAmount || !coverLetter) {
       toast.error('Please fill in all bid fields');
+      return;
+    }
+
+    const bidAmountNum = parseFloat(bidAmount);
+    
+    // Client-side budget validation
+    if (job.budget && bidAmountNum > job.budget) {
+      toast.error(`Bid amount cannot exceed the job budget of ₹${job.budget.toLocaleString()}`);
+      return;
+    }
+
+    if (bidAmountNum <= 0) {
+      toast.error('Bid amount must be greater than 0');
       return;
     }
 
@@ -311,13 +323,18 @@ const JobDetails = () => {
               </div>
 
               {/* Job Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8 p-4 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-4 bg-gray-50 rounded-lg">
                 <div>
-                  <div className="flex items-center text-green-600 mb-1">
+                  <div className="flex items-center text-orange-600 mb-1">
                     <DollarSign className="w-5 h-5 mr-1" />
-                    <span className="font-semibold">Salary</span>
+                    <span className="font-semibold">Project Budget</span>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">{formatSalaryToINR(job.salary) || 'Not specified'}</div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {job.budget ? `₹${job.budget.toLocaleString()}` : 'Not set'}
+                  </div>
+                  {job.budget && (
+                    <div className="text-xs text-gray-500 mt-1">Max bid amount</div>
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center text-blue-600 mb-1">
@@ -473,9 +490,15 @@ const JobDetails = () => {
                           required
                           min="1"
                           step="0.01"
+                          max={job.budget || undefined}
                         />
                         <div className="text-xs text-gray-500 mt-1">
                           Enter amount in Indian Rupees (₹)
+                          {job.budget && (
+                            <span className="block mt-1 text-orange-600 font-medium">
+                              ⚠️ Maximum bid amount: ₹{job.budget.toLocaleString()}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div>

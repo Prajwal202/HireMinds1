@@ -1,5 +1,6 @@
 const FreelancerProfile = require('../models/FreelancerProfile');
 const User = require('../models/User');
+const Payment = require('../models/Payment');
 const ErrorResponse = require('../utils/errorResponse');
 
 // @desc    Get freelancer profile
@@ -211,22 +212,63 @@ exports.uploadProfileImage = async (req, res, next) => {
 exports.getFreelancerStats = async (req, res, next) => {
   try {
     const profile = await FreelancerProfile.findOne({ user: req.user.id });
+    const paidPayments = await Payment.find({
+      freelancer: req.user.id,
+      transactionStatus: 'PAID'
+    }).select('amount paidAt project recruiter');
+
+    const totalEarnings = paidPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const earningsThisMonth = paidPayments
+      .filter((p) => p.paidAt && new Date(p.paidAt) >= startOfMonth)
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+    const totalClients = new Set(paidPayments.map((p) => p.recruiter?.toString()).filter(Boolean)).size;
+    const projectEarningsByProjectId = paidPayments.reduce((acc, payment) => {
+      const projectId = payment.project?.toString();
+      if (!projectId) {
+        return acc;
+      }
+      acc[projectId] = (acc[projectId] || 0) + (Number(payment.amount) || 0);
+      return acc;
+    }, {});
+
+    const completedProjects = Object.keys(projectEarningsByProjectId).length;
 
     if (!profile) {
       return res.status(200).json({
         success: true,
         data: {
-          completedProjects: 0,
-          totalEarnings: 0,
+          completedProjects,
+          totalEarnings,
+          earningsThisMonth,
           successRate: 0,
-          totalClients: 0
+          totalClients,
+          successRateChange: 0,
+          newProjectsThisWeek: 0,
+          newClients: 0,
+          projectEarningsByProjectId
         }
       });
     }
 
     res.status(200).json({
       success: true,
-      data: profile.stats
+      data: {
+        completedProjects,
+        totalEarnings,
+        earningsThisMonth,
+        successRate: profile.stats?.successRate || 0,
+        totalClients: Math.max(totalClients, profile.stats?.totalClients || 0),
+        successRateChange: 0,
+        newProjectsThisWeek: 0,
+        newClients: 0,
+        projectEarningsByProjectId
+      }
     });
   } catch (error) {
     next(error);

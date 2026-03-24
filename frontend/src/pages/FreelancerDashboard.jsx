@@ -75,6 +75,7 @@ const FreelancerDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds
+  const [projectEarnings, setProjectEarnings] = useState({});
   const intervalRef = useRef(null);
 
   // Load dashboard data
@@ -178,6 +179,9 @@ const FreelancerDashboard = () => {
 
       // Process stats data
       if (statsData) {
+        const statsPayload = statsData.data || {};
+        setProjectEarnings(statsPayload.projectEarningsByProjectId || {});
+
         const activeProjectsCount = activeProjectsData?.success ? activeProjectsData.data.length : 0;
         const newStats = [
           {
@@ -192,28 +196,28 @@ const FreelancerDashboard = () => {
           {
             icon: <DollarSign className="w-6 h-6" />,
             label: 'Total Earnings',
-            value: `$${statsData.totalEarnings?.toLocaleString() || '0'}`,
-            change: `+$${statsData.earningsThisMonth?.toLocaleString() || 0} this month`,
+            value: `₹${statsPayload.totalEarnings?.toLocaleString() || '0'}`,
+            change: `+₹${statsPayload.earningsThisMonth?.toLocaleString() || 0} this month`,
             color: 'bg-green-500',
-            trend: (statsData.earningsThisMonth || 0) > 0 ? 'up' : 'neutral',
+            trend: (statsPayload.earningsThisMonth || 0) > 0 ? 'up' : 'neutral',
             loading: false
           },
           {
             icon: <TrendingUp className="w-6 h-6" />,
             label: 'Success Rate',
-            value: `${statsData.successRate || 0}%`,
-            change: `${statsData.successRateChange >= 0 ? '+' : ''}${statsData.successRateChange || 0}% from last month`,
+            value: `${statsPayload.successRate || 0}%`,
+            change: `${statsPayload.successRateChange >= 0 ? '+' : ''}${statsPayload.successRateChange || 0}% from last month`,
             color: 'bg-purple-500',
-            trend: (statsData.successRateChange || 0) > 0 ? 'up' : (statsData.successRateChange || 0) < 0 ? 'down' : 'neutral',
+            trend: (statsPayload.successRateChange || 0) > 0 ? 'up' : (statsPayload.successRateChange || 0) < 0 ? 'down' : 'neutral',
             loading: false
           },
           {
             icon: <Users className="w-6 h-6" />,
             label: 'Total Clients',
-            value: statsData.totalClients || '0',
-            change: `+${statsData.newClients || 0} new clients`,
+            value: statsPayload.totalClients || '0',
+            change: `+${statsPayload.newClients || 0} new clients`,
             color: 'bg-orange-500',
-            trend: (statsData.newClients || 0) > 0 ? 'up' : 'neutral',
+            trend: (statsPayload.newClients || 0) > 0 ? 'up' : 'neutral',
             loading: false
           },
         ];
@@ -581,7 +585,10 @@ const FreelancerDashboard = () => {
                     <div className="flex items-center gap-4 md:ml-6">
                       <div className="text-right">
                         <div className="text-sm text-gray-600">Budget</div>
-                        <div className="text-lg font-bold text-gray-900">${project.acceptedBid?.bidAmount || 'N/A'}</div>
+                        <div className="text-lg font-bold text-gray-900">₹{project.acceptedBid?.bidAmount || project.budget || project.salary || 'N/A'}</div>
+                          <div className="text-xs text-green-700 mt-1">
+                            Received: ₹{(projectEarnings[project._id] || 0).toLocaleString()}
+                          </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Link

@@ -66,15 +66,21 @@ const addJob = async (req, res, next) => {
       company, 
       location, 
       description, 
-      salary, 
       type,
       biddingDeadline,
-      biddingDuration 
+      biddingDuration,
+      budget
     } = req.body;
 
     // Validation
-    if (!title || !company || !location || !description) {
-      return next(new ErrorResponse('Please provide all required fields', 400));
+    if (!title || !company || !location || !description || !budget) {
+      return next(new ErrorResponse('Please provide all required fields including budget', 400));
+    }
+
+    // Validate budget
+    const budgetNum = Number(budget);
+    if (isNaN(budgetNum) || budgetNum < 0) {
+      return next(new ErrorResponse('Budget must be a positive number', 400));
     }
 
     // Validate bidding deadline
@@ -103,12 +109,12 @@ const addJob = async (req, res, next) => {
       company,
       location,
       description,
-      salary: salary || 'Not specified',
       type: type || 'Full-time',
       postedBy: req.user.id,
       status: 'open',
       biddingDeadline: deadline,
-      biddingDuration: biddingDuration || 24
+      biddingDuration: biddingDuration || 24,
+      budget: budgetNum
     });
 
     const populatedJob = await Job.findById(job._id)
@@ -159,6 +165,15 @@ const updateJob = async (req, res, next) => {
       const deadline = new Date();
       deadline.setHours(deadline.getHours() + duration);
       req.body.biddingDeadline = deadline;
+    }
+
+    // Validate budget if provided
+    if (req.body.budget !== undefined && req.body.budget !== null) {
+      const budgetNum = Number(req.body.budget);
+      if (isNaN(budgetNum) || budgetNum < 0) {
+        return next(new ErrorResponse('Budget must be a positive number', 400));
+      }
+      req.body.budget = budgetNum;
     }
 
     // Prevent changing postedBy

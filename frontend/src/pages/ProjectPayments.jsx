@@ -196,232 +196,89 @@ const ProjectPayments = () => {
     setProcessingPayment(true);
     
     try {
-      console.log('Starting payment process...');
-      console.log('Project ID:', id);
-      console.log('Current level:', payableInfo.currentLevel);
-      console.log('Amount to pay:', payableInfo.payableAmount);
-      console.log('UPI ID:', freelancerProfile.personalInfo.upiId);
-      
-      // Create payment record in backend
-      const paymentData = {
-        projectId: id,
-        amount: payableInfo.payableAmount,
-        milestoneLevel: payableInfo.currentLevel,
-        upiId: freelancerProfile.personalInfo.upiId,
-        paymentMethod: 'UPI',
-        currency: 'INR'
-      };
-      
-      console.log('Creating payment record:', paymentData);
-      
-      // Check if Razorpay is loaded, if not load it dynamically
-      if (!window.Razorpay) {
-        console.log('Razorpay not loaded, loading script dynamically...');
-        const script = document.createElement('script');
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.async = true;
-        script.onload = () => {
-          console.log('Razorpay script loaded successfully');
-          initializeRazorpay();
-        };
-        script.onerror = () => {
-          console.error('Failed to load Razorpay script');
-          toast.error('Payment gateway not available. Please try again later.');
-          setProcessingPayment(false);
-        };
-        document.body.appendChild(script);
-      } else {
-        initializeRazorpay();
+      // 1) Fetch key id (safe to expose key_id)
+      const keyRes = await paymentAPI.getRazorpayKey();
+      const keyId = keyRes?.data?.keyId;
+      if (!keyId) {
+        toast.error('Razorpay key is not configured on server');
+        return;
       }
-    } catch (error) {
-      console.error('Error processing payment:', error);
-      toast.error('Failed to process payment. Please try again.');
-    } finally {
-      // Don't set processingPayment false here - it will be set in Razorpay handlers
-    }
-  };
 
-  const initializeRazorpay = () => {
-    try {
-      console.log('Initializing Razorpay...');
-      
-      // Get Razorpay key - you can update this in browser console
-      let razorpayKey = 'rzp_test_O Your actual test key here';
-      
-      // Allow setting key via browser console for testing
-      if (window.razorpayTestKey) {
-        razorpayKey = window.razorpayTestKey;
-        console.log('Using custom Razorpay key:', razorpayKey);
+      // 2) Create an order on backend for this milestone
+      const orderRes = await paymentAPI.createPaymentOrder(id, payableInfo.currentLevel);
+      const order = orderRes?.data?.razorpayOrder;
+      if (!order?.id) {
+        toast.error('Failed to create Razorpay order');
+        return;
       }
-      
-      // Initialize Razorpay and process real payment
+
+      // 3) Load Razorpay checkout.js if needed
+      if (!window.Razorpay) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.async = true;
+          script.onload = resolve;
+          script.onerror = reject;
+          document.body.appendChild(script);
+        });
+      }
+
       const options = {
-        key: razorpayKey,
-        amount: payableInfo.payableAmount * 100, // Convert to paise
-        currency: 'INR',
+        key: keyId,
+        amount: order.amount,
+        currency: order.currency,
         name: 'HireMinds',
-        description: `Payment for ${project.title} - ${payableInfo.currentMilestoneStatus}`,
-        image: '/logo.png',
-        handler: function (response) {
-          console.log('Razorpay payment successful:', response);
-          
-          // Payment successful
-          const paymentResponse = {
-            success: true,
-            data: {
-              payment: {
-                _id: 'payment_' + Date.now(),
-                amount: payableInfo.payableAmount,
-                transactionStatus: 'SUCCESS',
-                milestone: {
-                  level: payableInfo.currentLevel,
-                  status: payableInfo.currentMilestoneStatus,
-                  percentage: payableInfo.currentPercentage
-                },
-                upiId: freelancerProfile.personalInfo.upiId,
-                paymentMethod: 'UPI',
-                razorpayPaymentId: response.razorpay_payment_id,
-                createdAt: new Date().toISOString()
-              }
+        description: `Milestone payment for ${project.title}`,
+        order_id: order.id,
+        handler: async function (response) {
+          try {
+            const verifyRes = await paymentAPI.verifyPayment(response);
+            if (verifyRes?.success) {
+              toast.success(`✅ Payment successful: ₹${payableInfo.payableAmount.toLocaleString()}`);
+              setPayableInfo({
+                ...payableInfo,
+                paymentExists: true,
+                paymentStatus: 'PAID'
+              });
+              setTimeout(() => loadProjectData(), 1200);
+            } else {
+              toast.error('Payment verification failed');
             }
-          };
-          
-          console.log('Payment response:', paymentResponse);
-          
-          // Show immediate alert for debugging
-          alert(`🎉 PAYMENT SUCCESSFUL!\n\nAmount: ₹${payableInfo.payableAmount.toLocaleString()}\nUPI ID: ${freelancerProfile.personalInfo.upiId}\nTransaction ID: ${paymentResponse.data.payment._id}\nRazorpay ID: ${response.razorpay_payment_id}\n\nCheck console for full details.`);
-          
-          // Payment successful
-          toast.success(`✅ Payment of ₹${payableInfo.payableAmount.toLocaleString()} completed successfully!`, {
-            duration: 5000,
-            icon: '🎉'
-          });
-          
-          toast.success(`💰 Paid to UPI ID: ${freelancerProfile.personalInfo.upiId}`, {
-            duration: 4000,
-            icon: '📱'
-          });
-          
-          // Update payable info to show payment completed
-          setPayableInfo({
-            ...payableInfo,
-            paymentExists: true,
-            paymentStatus: 'SUCCESS'
-          });
-          
-          // Show payment details
-          console.log('=== PAYMENT COMPLETED ===');
-          console.log('Amount:', payableInfo.payableAmount);
-          console.log('UPI ID:', freelancerProfile.personalInfo.upiId);
-          console.log('Milestone:', payableInfo.currentMilestoneStatus);
-          console.log('Transaction ID:', paymentResponse.data.payment._id);
-          console.log('Razorpay Payment ID:', response.razorpay_payment_id);
-          
-          // Reload project data to refresh UI
-          setTimeout(() => {
-            console.log('Reloading project data after payment...');
-            loadProjectData();
-          }, 2000);
-          
-          setProcessingPayment(false);
+          } catch (err) {
+            toast.error(err?.response?.data?.error || 'Payment verification failed');
+          }
         },
         prefill: {
           name: user?.name || 'Recruiter',
-          email: user?.email || 'recruiter@example.com',
-          contact: ''
+          email: user?.email || 'recruiter@example.com'
         },
         notes: {
           projectId: id,
           milestoneLevel: payableInfo.currentLevel,
-          freelancerId: freelancerProfile._id,
-          upiId: freelancerProfile.personalInfo.upiId
+          freelancerUpi: freelancerProfile?.personalInfo?.upiId || ''
         },
         theme: {
           color: '#3B82F6'
         },
         modal: {
-          ondismiss: function() {
-            console.log('Razorpay modal dismissed');
-            toast.error('Payment cancelled by user');
-            setProcessingPayment(false);
-          },
-          escape: true,
-          backdropclose: true,
-          handleback: true
+          ondismiss: function () {
+            toast.error('Payment cancelled');
+          }
         }
       };
-      
+
       const rzp = new window.Razorpay(options);
       rzp.open();
-      console.log('Razorpay modal opened');
-      
     } catch (error) {
-      console.error('Error initializing Razorpay:', error);
-      
-      // Fallback to simulated payment if Razorpay fails
-      console.log('Falling back to simulated payment...');
-      toast.loading('Processing payment...', { duration: 1500 });
-      
-      setTimeout(() => {
-        const paymentResponse = {
-          success: true,
-          data: {
-            payment: {
-              _id: 'payment_' + Date.now(),
-              amount: payableInfo.payableAmount,
-              transactionStatus: 'SUCCESS',
-              milestone: {
-                level: payableInfo.currentLevel,
-                status: payableInfo.currentMilestoneStatus,
-                percentage: payableInfo.currentPercentage
-              },
-              upiId: freelancerProfile.personalInfo.upiId,
-              paymentMethod: 'UPI',
-              createdAt: new Date().toISOString()
-            }
-          }
-        };
-        
-        console.log('Simulated payment response:', paymentResponse);
-        
-        // Show immediate alert for debugging
-        alert(`🎉 PAYMENT SUCCESSFUL!\n\nAmount: ₹${payableInfo.payableAmount.toLocaleString()}\nUPI ID: ${freelancerProfile.personalInfo.upiId}\nTransaction ID: ${paymentResponse.data.payment._id}\n\n(Simulated Payment - Razorpay unavailable)`);
-        
-        // Payment successful
-        toast.success(`✅ Payment of ₹${payableInfo.payableAmount.toLocaleString()} completed successfully!`, {
-          duration: 5000,
-          icon: '🎉'
-        });
-        
-        toast.success(`💰 Paid to UPI ID: ${freelancerProfile.personalInfo.upiId}`, {
-          duration: 4000,
-          icon: '📱'
-        });
-        
-        // Update payable info to show payment completed
-        setPayableInfo({
-          ...payableInfo,
-          paymentExists: true,
-          paymentStatus: 'SUCCESS'
-        });
-        
-        // Show payment details
-        console.log('=== PAYMENT COMPLETED (SIMULATED) ===');
-        console.log('Amount:', payableInfo.payableAmount);
-        console.log('UPI ID:', freelancerProfile.personalInfo.upiId);
-        console.log('Milestone:', payableInfo.currentMilestoneStatus);
-        console.log('Transaction ID:', paymentResponse.data.payment._id);
-        
-        // Reload project data to refresh UI
-        setTimeout(() => {
-          console.log('Reloading project data after payment...');
-          loadProjectData();
-        }, 2000);
-        
-        setProcessingPayment(false);
-      }, 1500);
+      console.error('Error processing payment:', error);
+      toast.error(error?.response?.data?.error || 'Failed to start payment. Please try again.');
+    } finally {
+      setProcessingPayment(false);
     }
   };
+
+  // Razorpay Checkout is intentionally not used for recruiter->freelancer payouts.
 
   const getPaymentStatusColor = (status) => {
     switch (status) {
@@ -747,13 +604,16 @@ const ProjectPayments = () => {
                     <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-gray-900">Payment to UPI ID:</p>
+                          <p className="text-sm font-medium text-gray-900">Freelancer UPI ID (reference):</p>
                           <p className="text-lg font-bold text-green-700">{freelancerProfile.personalInfo.upiId}</p>
                         </div>
                         <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
                           ✓ Verified
                         </div>
                       </div>
+                      <p className="text-xs text-gray-600 mt-2">
+                        Razorpay checkout QR is your merchant collection QR, not this freelancer UPI ID.
+                      </p>
                     </div>
                   )}
 
@@ -783,7 +643,7 @@ const ProjectPayments = () => {
                         ) : (
                           <>
                             <IndianRupee className="w-4 h-4" />
-                            <span>Pay Now via UPI</span>
+                            <span>Pay via Razorpay Checkout</span>
                           </>
                         )}
                       </button>
@@ -817,7 +677,7 @@ const ProjectPayments = () => {
                   {payableInfo.paymentExists && payableInfo.paymentStatus !== 'FAILED' && (
                     <div className="mt-4 p-2 bg-green-100 border border-green-200 rounded">
                       <p className="text-sm text-green-800">
-                        {payableInfo.paymentStatus === 'SUCCESS' ? '✅ Payment completed' : '⏳ Payment already initiated'}
+                        {payableInfo.paymentStatus === 'PAID' ? '✅ Payment completed' : '⏳ Payment already initiated'}
                       </p>
                     </div>
                   )}

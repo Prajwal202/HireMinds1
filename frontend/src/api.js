@@ -1227,6 +1227,32 @@ export const paymentAPI = {
     }
   },
 
+  // Get Razorpay key id (for checkout.js)
+  getRazorpayKey: async () => {
+    try {
+      const response = await API.get('/v1/payments/razorpay-key');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching Razorpay key:', error);
+      throw error;
+    }
+  },
+
+  // Verify Razorpay payment (signature verification)
+  verifyPayment: async ({ razorpay_order_id, razorpay_payment_id, razorpay_signature } = {}) => {
+    try {
+      const response = await API.post('/v1/payments/verify', {
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error verifying payment:', error);
+      throw error;
+    }
+  },
+
   // Initialize milestones for a project
   initializeMilestones: async (projectId) => {
     try {
@@ -1256,6 +1282,17 @@ export const paymentAPI = {
       return response.data;
     } catch (error) {
       console.error('Error fetching payable amount:', error);
+      throw error;
+    }
+  },
+
+  // Get logged-in freelancer payments
+  getFreelancerPayments: async () => {
+    try {
+      const response = await API.get('/v1/payments/freelancer/me');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching freelancer payments:', error);
       throw error;
     }
   }

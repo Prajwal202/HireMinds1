@@ -16,10 +16,10 @@ const PostJob = () => {
     company: '',
     location: '',
     description: '',
-    salary: '',
     type: 'Full-time',
     biddingDuration: 24,
     biddingDeadline: '',
+    budget: '',
   });
 
   // Fetch job data if editing
@@ -37,10 +37,10 @@ const PostJob = () => {
             company: job.company || '',
             location: job.location || '',
             description: job.description || '',
-            salary: job.salary || '',
             type: job.type || 'Full-time',
             biddingDuration: job.biddingDuration || 24,
             biddingDeadline: job.biddingDeadline ? new Date(job.biddingDeadline).toISOString().slice(0, 16) : '',
+            budget: job.budget || '',
           });
           
           // Set bidding type based on existing deadline
@@ -79,8 +79,8 @@ const PostJob = () => {
         company: formData.company,
         location: formData.location,
         description: formData.description,
-        salary: formData.salary || 'Not specified',
         type: formData.type,
+        budget: formData.budget ? Number(formData.budget) : undefined,
       };
 
       // Add bidding deadline or duration based on selection
@@ -239,25 +239,31 @@ const PostJob = () => {
               </p>
             </div>
 
-            {/* Salary */}
+            {/* Project Budget */}
             <div>
-              <label htmlFor="salary" className="block text-sm font-medium text-gray-700 mb-2">
-                Salary (INR)
+              <label htmlFor="budget" className="block text-sm font-medium text-gray-700 mb-2">
+                Project Budget (INR) *
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500">₹</span>
+                  <DollarSign className="w-5 h-5 text-gray-500" />
                 </div>
                 <input
-                  type="text"
-                  id="salary"
-                  name="salary"
-                  value={formData.salary}
+                  type="number"
+                  id="budget"
+                  name="budget"
+                  value={formData.budget}
                   onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  required
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
-                  placeholder="e.g., 8,00,000 - 12,00,000"
+                  placeholder="e.g., 2000"
                 />
               </div>
+              <p className="mt-2 text-sm text-gray-500">
+                Set the maximum amount freelancers can bid for this project. Freelancers won't be able to bid above this amount.
+              </p>
             </div>
 
             {/* Job Type */}

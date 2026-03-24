@@ -15,6 +15,7 @@ import PostJob from './pages/PostJob';
 import Dashboard from './pages/Dashboard';
 
 import FreelancerDashboard from './pages/FreelancerDashboard';
+import FreelancerPayments from './pages/FreelancerPayments';
 
 import FreelancerProfile from './pages/FreelancerProfile';
 
@@ -77,6 +78,7 @@ function App() {
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
                 <Route path="/freelancer/dashboard" element={<ProtectedRoute><FreelancerDashboard /></ProtectedRoute>} />
+                <Route path="/freelancer/payments" element={<ProtectedRoute><FreelancerPayments /></ProtectedRoute>} />
 
                 <Route path="/freelancer/profile" element={<ProtectedRoute><FreelancerProfile /></ProtectedRoute>} />
 

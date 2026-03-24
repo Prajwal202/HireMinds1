@@ -21,13 +21,9 @@ const jobSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please add a job description'],
     },
-    salary: {
-      type: String,
-      default: 'Not specified',
-    },
     budget: {
       type: Number,
-      required: false,
+      required: [true, 'Please provide a project budget'],
       min: [0, 'Budget must be a positive number']
     },
     type: {

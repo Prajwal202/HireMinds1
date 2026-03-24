@@ -1,4 +1,6 @@
+const axios = require('axios');
 const Job = require('../models/Job');
+const FreelancerProfile = require('../models/FreelancerProfile');
 const ErrorResponse = require('../utils/errorResponse');
 
 // Progress level mapping
@@ -8,6 +10,32 @@ const progressLevels = {
   2: { status: 'Midway Completed', percentage: 60 },
   3: { status: 'Almost Done', percentage: 80 },
   4: { status: 'Completed', percentage: 100 }
+};
+
+const RAZORPAY_API_BASE_URL = 'https://api.razorpay.com/v1';
+
+const isValidUpiId = (upiId = '') => /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(upiId);
+
+const getMilestoneAmount = (project, milestoneLevel) => {
+  const totalAmount = Number(project.budget || 0);
+  const milestoneInfo = progressLevels[milestoneLevel];
+
+  if (!milestoneInfo) {
+    return 0;
+  }
+
+  return Math.round((totalAmount * milestoneInfo.percentage) / 100);
+};
+
+const postToRazorpay = async (path, payload, auth) => {
+  try {
+    return await axios.post(`${RAZORPAY_API_BASE_URL}${path}`, payload, { auth });
+  } catch (error) {
+    const status = error.response?.status || 500;
+    const raw = error.response?.data?.error || error.response?.data || {};
+    const description = raw.description || raw.reason || JSON.stringify(raw) || 'Unknown Razorpay error';
+    throw new ErrorResponse(`Razorpay API ${path} failed (${status}): ${description}`, 400);
+  }
 };
 
 // @desc    Get project payments (simplified version)
@@ -272,5 +300,140 @@ exports.createPaymentOrder = async (req, res, next) => {
   } catch (error) {
     console.error('Error creating payment order:', error);
     next(error);
+  }
+};
+
+// @desc    Release recruiter payment to freelancer UPI using RazorpayX
+// @route   POST /api/v1/payments/release
+// @access  Private (Employer/Recruiter only)
+exports.releasePaymentToFreelancer = async (req, res, next) => {
+  try {
+    const { projectId, amount, milestoneLevel } = req.body;
+
+    if (!projectId) {
+      return next(new ErrorResponse('Project ID is required', 400));
+    }
+
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return next(new ErrorResponse('Razorpay API keys are not configured', 500));
+    }
+
+    if (!process.env.RAZORPAYX_ACCOUNT_NUMBER) {
+      return next(new ErrorResponse('RAZORPAYX_ACCOUNT_NUMBER is not configured', 500));
+    }
+
+    const project = await Job.findById(projectId);
+    if (!project) {
+      return next(new ErrorResponse('Project not found', 404));
+    }
+
+    const isProjectOwner = project.postedBy.toString() === req.user.id;
+    const isEmployer = req.user.role === 'employer' || req.user.role === 'admin';
+    if (!isProjectOwner || !isEmployer) {
+      return next(new ErrorResponse('Only the recruiter who owns this project can release payment', 403));
+    }
+
+    if (!project.allocatedTo) {
+      return next(new ErrorResponse('No freelancer is allocated to this project', 400));
+    }
+
+    const freelancerProfile = await FreelancerProfile.findOne({ user: project.allocatedTo });
+    if (!freelancerProfile) {
+      return next(new ErrorResponse('Freelancer profile not found', 404));
+    }
+
+    const freelancerUpiId = (freelancerProfile.personalInfo?.upiId || '').trim();
+    if (!freelancerUpiId) {
+      return next(new ErrorResponse('Freelancer UPI ID is missing in profile', 400));
+    }
+
+    if (!isValidUpiId(freelancerUpiId)) {
+      return next(new ErrorResponse('Freelancer UPI ID format is invalid', 400));
+    }
+
+    const numericAmount = Number(amount);
+    let payoutAmountInRupees = Number.isFinite(numericAmount) ? numericAmount : 0;
+
+    if (payoutAmountInRupees <= 0 && Number.isInteger(milestoneLevel) && milestoneLevel >= 0 && milestoneLevel <= 4) {
+      payoutAmountInRupees = getMilestoneAmount(project, milestoneLevel);
+    }
+
+    if (payoutAmountInRupees <= 0) {
+      return next(new ErrorResponse('Valid payout amount is required', 400));
+    }
+
+    const amountInPaise = Math.round(payoutAmountInRupees * 100);
+    const auth = {
+      username: process.env.RAZORPAY_KEY_ID,
+      password: process.env.RAZORPAY_KEY_SECRET
+    };
+
+    // Step 1: Create contact for allocated freelancer
+    const contactResponse = await postToRazorpay(
+      '/contacts',
+      {
+        name: freelancerProfile.personalInfo?.name || 'Freelancer',
+        email: freelancerProfile.personalInfo?.email || 'freelancer@example.com',
+        contact: (freelancerProfile.personalInfo?.phone || '9999999999').replace(/\D/g, '').slice(-10),
+        type: 'employee',
+        reference_id: `freelancer_${project.allocatedTo.toString()}`,
+        notes: {
+          projectId: project._id.toString(),
+          userId: project.allocatedTo.toString()
+        }
+      },
+      auth
+    );
+
+    // Step 2: Create UPI fund account from freelancer UPI ID
+    const fundAccountResponse = await postToRazorpay(
+      '/fund_accounts',
+      {
+        contact_id: contactResponse.data.id,
+        account_type: 'vpa',
+        vpa: {
+          address: freelancerUpiId
+        }
+      },
+      auth
+    );
+
+    // Step 3: Trigger payout to freelancer UPI
+    const payoutResponse = await postToRazorpay(
+      '/payouts',
+      {
+        account_number: process.env.RAZORPAYX_ACCOUNT_NUMBER,
+        fund_account_id: fundAccountResponse.data.id,
+        amount: amountInPaise,
+        currency: 'INR',
+        mode: 'UPI',
+        purpose: 'payout',
+        queue_if_low_balance: true,
+        reference_id: `project_${project._id}_${Date.now()}`,
+        narration: `Payout for ${project.title}`
+      },
+      auth
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        projectId: project._id,
+        freelancerId: project.allocatedTo,
+        freelancerUpiId,
+        amount: payoutAmountInRupees,
+        razorpay: {
+          contactId: contactResponse.data.id,
+          fundAccountId: fundAccountResponse.data.id,
+          payoutId: payoutResponse.data.id,
+          payoutStatus: payoutResponse.data.status
+        }
+      }
+    });
+  } catch (error) {
+    if (error instanceof ErrorResponse) {
+      return next(error);
+    }
+    return next(new ErrorResponse(`Razorpay payout failed: ${error.message || 'Unknown error'}`, 400));
   }
 };

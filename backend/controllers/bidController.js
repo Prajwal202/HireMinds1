@@ -127,6 +127,12 @@ exports.createBid = async (req, res, next) => {
       return next(new ErrorResponse('You have already placed a bid on this job', 400));
     }
 
+    // Validate bid amount against job budget
+    if (job.budget && bidAmount > job.budget) {
+      console.log('Bid amount exceeds job budget:', { bidAmount, budget: job.budget });
+      return next(new ErrorResponse(`Bid amount cannot exceed the job budget of ${job.budget}`, 400));
+    }
+
     // Create bid
     const bid = await Bid.create({
       job: jobId,
