@@ -1,6 +1,7 @@
 const Job = require('../models/Job');
-
+const User = require('../models/User');
 const ErrorResponse = require('../utils/errorResponse');
+const { sendLevelCompletionEmailToRecruiter, sendLevelCompletionEmailToFreelancer } = require('../utils/emailService');
 
 
 
@@ -355,6 +356,46 @@ exports.updateProjectProgress = async (req, res, next) => {
     console.log('New completion percentage:', project.completionPercentage);
 
     console.log('New project status:', project.projectStatus);
+
+
+
+    // Send email notifications for level completion
+    try {
+      // Get recruiter and freelancer details
+      const recruiter = await User.findById(project.postedBy);
+      const freelancer = await User.findById(project.allocatedTo);
+
+      if (recruiter && freelancer) {
+        const milestoneInfo = progressLevels[progressLevel];
+
+        // Send email to recruiter about level completion
+        await sendLevelCompletionEmailToRecruiter(
+          recruiter.email,
+          recruiter.name,
+          freelancer.name,
+          project.title,
+          progressLevel,
+          milestoneInfo.status,
+          project.completionPercentage
+        );
+
+        // Send confirmation email to freelancer
+        await sendLevelCompletionEmailToFreelancer(
+          freelancer.email,
+          freelancer.name,
+          project.title,
+          project.company || 'Company',
+          progressLevel,
+          milestoneInfo.status,
+          project.completionPercentage
+        );
+
+        console.log('Level completion emails sent successfully');
+      }
+    } catch (emailError) {
+      console.error('Error sending level completion emails:', emailError);
+      // Continue with the response even if email fails
+    }
 
 
 

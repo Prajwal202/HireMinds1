@@ -1,9 +1,11 @@
 const Job = require('../models/Job');
 const Milestone = require('../models/Milestone');
 const Payment = require('../models/Payment');
+const User = require('../models/User');
 const ErrorResponse = require('../utils/errorResponse');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const { sendTransactionSubmissionEmailToRecruiter, sendTransactionAcceptanceEmailToFreelancer, sendTransactionRejectionEmailToFreelancer } = require('../utils/emailService');
 
 const getRazorpayClient = () => {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -285,15 +287,17 @@ exports.getFreelancerPayments = async (req, res, next) => {
       return next(new ErrorResponse('Only freelancers can view this payment list', 403));
     }
 
+    // Get all payments for this freelancer (both paid and pending)
     const payments = await Payment.find({
-      freelancer: req.user.id,
-      transactionStatus: 'PAID'
+      freelancer: req.user.id
     })
       .populate('project', 'title company')
       .populate('recruiter', 'name email')
-      .sort({ paidAt: -1, createdAt: -1 });
+      .sort({ createdAt: -1 });
 
-    const totalReceived = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const totalReceived = payments
+      .filter(p => p.transactionStatus === 'PAID')
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
     return res.status(200).json({
       success: true,
@@ -515,6 +519,29 @@ exports.recordUPIPayment = async (req, res, next) => {
       notes: 'Direct UPI payment confirmed by freelancer'
     });
 
+    // Send email notification to recruiter about transaction submission
+    try {
+      const recruiter = await User.findById(project.postedBy);
+      const milestoneInfo = progressLevels[milestoneLevel || 0];
+
+      if (recruiter) {
+        await sendTransactionSubmissionEmailToRecruiter(
+          recruiter.email,
+          recruiter.name,
+          req.user.name, // Freelancer name
+          project.title,
+          Number(amount),
+          payment.transactionId,
+          milestoneInfo.status
+        );
+
+        console.log('Transaction submission email sent to recruiter');
+      }
+    } catch (emailError) {
+      console.error('Error sending transaction submission email:', emailError);
+      // Continue with the response even if email fails
+    }
+
     return res.status(200).json({
       success: true,
       data: {
@@ -524,6 +551,413 @@ exports.recordUPIPayment = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error recording UPI payment:', error);
+    next(error);
+  }
+};
+
+// @desc    Submit transaction details by recruiter
+// @route   POST /api/v1/payments/submit-transaction
+// @access  Private (Recruiter only)
+exports.submitTransaction = async (req, res, next) => {
+  try {
+    const { projectId, amount, milestoneLevel, transactionId, freelancerUpiId } = req.body;
+
+    if (!projectId || !amount || !transactionId) {
+      return next(new ErrorResponse('Project ID, amount, and transaction ID are required', 400));
+    }
+
+    // Get project details
+    const project = await Job.findById(projectId);
+    if (!project) {
+      return next(new ErrorResponse('Project not found', 404));
+    }
+
+    // Check if user is the recruiter who posted the project
+    if (project.postedBy.toString() !== req.user.id) {
+      return next(new ErrorResponse('Only the recruiter who posted this project can submit transaction details', 403));
+    }
+
+    // Check if project is allocated to a freelancer
+    if (!project.allocatedTo) {
+      return next(new ErrorResponse('Project is not allocated to any freelancer', 400));
+    }
+
+    // Get or create milestone
+    let milestone = await Milestone.findOne({ project: projectId, level: milestoneLevel || 1 });
+    if (!milestone) {
+      milestone = await Milestone.create({
+        project: projectId,
+        level: milestoneLevel || 1,
+        status: progressLevels[milestoneLevel || 1].status,
+        percentage: progressLevels[milestoneLevel || 1].percentage
+      });
+    }
+
+    // Check if payment already exists for this milestone
+    const existingPayment = await Payment.findOne({ milestone: milestone._id });
+    if (existingPayment && existingPayment.transactionStatus === 'PAID' && existingPayment.verified) {
+      return next(new ErrorResponse('Payment has already been processed for this milestone', 400));
+    }
+
+    // Create or update payment record
+    let payment;
+    if (existingPayment) {
+      // Update existing payment
+      existingPayment.amount = Number(amount);
+      existingPayment.transactionId = transactionId;
+      existingPayment.gatewayOrderId = `RECRUITER_${Date.now()}`;
+      existingPayment.transactionStatus = 'CREATED';
+      existingPayment.paidAt = null;
+      existingPayment.verified = false;
+      existingPayment.verifiedAt = null;
+      existingPayment.verifiedBy = null;
+      existingPayment.rejectionReason = null;
+      existingPayment.rejectedAt = null;
+      existingPayment.rejectedBy = null;
+      payment = await existingPayment.save();
+    } else {
+      // Create new payment record
+      payment = await Payment.create({
+        project: projectId,
+        milestone: milestone._id,
+        recruiter: req.user.id,
+        freelancer: project.allocatedTo,
+        amount: Number(amount),
+        currency: 'INR',
+        gateway: 'RECRUITER_SUBMITTED',
+        gatewayOrderId: `RECRUITER_${Date.now()}`,
+        transactionId: transactionId,
+        transactionStatus: 'CREATED',
+        paidAt: null,
+        verified: false,
+        verifiedAt: null,
+        verifiedBy: null,
+        rejectionReason: null,
+        rejectedAt: null,
+        rejectedBy: null,
+        notes: `Transaction submitted by recruiter. Freelancer UPI: ${freelancerUpiId || 'Not provided'}`
+      });
+    }
+
+    // Send email notification to freelancer about transaction submission
+    try {
+      const freelancer = await User.findById(project.allocatedTo);
+      const recruiter = await User.findById(project.postedBy);
+      const milestoneInfo = progressLevels[milestoneLevel || 1];
+
+      if (freelancer && recruiter) {
+        await sendTransactionSubmissionEmailToRecruiter(
+          recruiter.email,
+          recruiter.name,
+          freelancer.name,
+          project.title,
+          Number(amount),
+          transactionId,
+          milestoneInfo.status
+        );
+
+        console.log('Transaction submission email sent to recruiter');
+      }
+    } catch (emailError) {
+      console.error('Error sending transaction submission email:', emailError);
+      // Continue with the response even if email fails
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        payment,
+        message: 'Transaction details submitted successfully. Waiting for freelancer verification.'
+      }
+    });
+  } catch (error) {
+    console.error('Error submitting transaction details:', error);
+    next(error);
+  }
+};
+// @route   POST /api/v1/payments/accept-transaction
+// @access  Private (Recruiter only)
+exports.acceptTransaction = async (req, res, next) => {
+  try {
+    const { paymentId } = req.body;
+
+    if (!paymentId) {
+      return next(new ErrorResponse('Payment ID is required', 400));
+    }
+
+    // Get payment details
+    const payment = await Payment.findById(paymentId).populate('project').populate('freelancer');
+    if (!payment) {
+      return next(new ErrorResponse('Payment not found', 404));
+    }
+
+    // Check if user is the recruiter who posted the project
+    const project = await Job.findById(payment.project);
+    if (project.postedBy.toString() !== req.user.id) {
+      return next(new ErrorResponse('Not authorized to accept this transaction', 403));
+    }
+
+    // Check if payment is already processed
+    if (payment.transactionStatus === 'PAID' && payment.verified) {
+      return next(new ErrorResponse('Transaction is already accepted', 400));
+    }
+
+    // Update payment status to verified
+    payment.verified = true;
+    payment.verifiedAt = new Date();
+    payment.verifiedBy = req.user.id;
+    await payment.save();
+
+    // Send email notification to freelancer
+    try {
+      const recruiter = await User.findById(project.postedBy);
+      const milestone = await Milestone.findById(payment.milestone);
+      const milestoneInfo = progressLevels[milestone.level];
+
+      if (recruiter && payment.freelancer) {
+        await sendTransactionAcceptanceEmailToFreelancer(
+          payment.freelancer.email,
+          payment.freelancer.name,
+          project.title,
+          project.company || 'Company',
+          payment.amount,
+          payment.transactionId,
+          milestoneInfo.status
+        );
+
+        console.log('Transaction acceptance email sent to freelancer');
+      }
+    } catch (emailError) {
+      console.error('Error sending transaction acceptance email:', emailError);
+      // Continue with the response even if email fails
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        payment,
+        message: 'Transaction accepted successfully'
+      }
+    });
+  } catch (error) {
+    console.error('Error accepting transaction:', error);
+    next(error);
+  }
+};
+
+// @desc    Reject transaction ID submitted by freelancer
+// @route   POST /api/v1/payments/reject-transaction
+// @access  Private (Recruiter only)
+exports.rejectTransaction = async (req, res, next) => {
+  try {
+    const { paymentId, rejectionReason } = req.body;
+
+    if (!paymentId) {
+      return next(new ErrorResponse('Payment ID is required', 400));
+    }
+
+    // Get payment details
+    const payment = await Payment.findById(paymentId).populate('project').populate('freelancer');
+    if (!payment) {
+      return next(new ErrorResponse('Payment not found', 404));
+    }
+
+    // Check if user is the recruiter who posted the project
+    const project = await Job.findById(payment.project);
+    if (project.postedBy.toString() !== req.user.id) {
+      return next(new ErrorResponse('Not authorized to reject this transaction', 403));
+    }
+
+    // Check if payment is already processed
+    if (payment.transactionStatus === 'PAID' && payment.verified) {
+      return next(new ErrorResponse('Transaction is already accepted', 400));
+    }
+
+    // Update payment status to rejected
+    payment.transactionStatus = 'REJECTED';
+    payment.rejectionReason = rejectionReason || 'Invalid transaction details';
+    payment.rejectedAt = new Date();
+    payment.rejectedBy = req.user.id;
+    await payment.save();
+
+    // Send email notification to freelancer
+    try {
+      const recruiter = await User.findById(project.postedBy);
+      const milestone = await Milestone.findById(payment.milestone);
+      const milestoneInfo = progressLevels[milestone.level];
+
+      if (recruiter && payment.freelancer) {
+        await sendTransactionRejectionEmailToFreelancer(
+          payment.freelancer.email,
+          payment.freelancer.name,
+          project.title,
+          project.company || 'Company',
+          payment.amount,
+          payment.transactionId,
+          milestoneInfo.status,
+          payment.rejectionReason
+        );
+
+        console.log('Transaction rejection email sent to freelancer');
+      }
+    } catch (emailError) {
+      console.error('Error sending transaction rejection email:', emailError);
+      // Continue with the response even if email fails
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        payment,
+        message: 'Transaction rejected successfully'
+      }
+    });
+  } catch (error) {
+    console.error('Error rejecting transaction:', error);
+    next(error);
+  }
+};
+
+// @desc    Verify transaction as freelancer (accept payment)
+// @route   POST /api/v1/payments/verify-transaction
+// @access  Private (Freelancer only)
+exports.verifyTransaction = async (req, res, next) => {
+  try {
+    const { paymentId } = req.body;
+
+    if (!paymentId) {
+      return next(new ErrorResponse('Payment ID is required', 400));
+    }
+
+    // Get payment details
+    const payment = await Payment.findById(paymentId).populate('project').populate('freelancer');
+    if (!payment) {
+      return next(new ErrorResponse('Payment not found', 404));
+    }
+
+    // Check if user is the freelancer assigned to this payment
+    if (payment.freelancer._id.toString() !== req.user.id) {
+      return next(new ErrorResponse('Only the assigned freelancer can verify this transaction', 403));
+    }
+
+    // Check if payment is already processed
+    if (payment.transactionStatus === 'PAID' && payment.verified) {
+      return next(new ErrorResponse('Transaction is already verified', 400));
+    }
+
+    // Update payment status to verified
+    payment.transactionStatus = 'PAID';
+    payment.verified = true;
+    payment.verifiedAt = new Date();
+    payment.verifiedBy = req.user.id;
+    payment.paidAt = new Date();
+    await payment.save();
+
+    // Send email notification to freelancer
+    try {
+      const recruiter = await User.findById(payment.project.postedBy);
+      const milestone = await Milestone.findById(payment.milestone);
+      const milestoneInfo = progressLevels[milestone.level];
+
+      if (recruiter && payment.freelancer) {
+        await sendTransactionAcceptanceEmailToFreelancer(
+          payment.freelancer.email,
+          payment.freelancer.name,
+          payment.project.title,
+          payment.project.company || 'Company',
+          payment.amount,
+          payment.transactionId,
+          milestoneInfo.status
+        );
+
+        console.log('Transaction acceptance email sent to freelancer');
+      }
+    } catch (emailError) {
+      console.error('Error sending transaction acceptance email:', emailError);
+      // Continue with the response even if email fails
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        payment,
+        message: 'Transaction verified successfully'
+      }
+    });
+  } catch (error) {
+    console.error('Error verifying transaction:', error);
+    next(error);
+  }
+};
+
+// @desc    Reject transaction as freelancer
+// @route   POST /api/v1/payments/reject-transaction-freelancer
+// @access  Private (Freelancer only)
+exports.rejectTransactionAsFreelancer = async (req, res, next) => {
+  try {
+    const { paymentId, rejectionReason } = req.body;
+
+    if (!paymentId) {
+      return next(new ErrorResponse('Payment ID is required', 400));
+    }
+
+    // Get payment details
+    const payment = await Payment.findById(paymentId).populate('project').populate('freelancer');
+    if (!payment) {
+      return next(new ErrorResponse('Payment not found', 404));
+    }
+
+    // Check if user is the freelancer assigned to this payment
+    if (payment.freelancer._id.toString() !== req.user.id) {
+      return next(new ErrorResponse('Only the assigned freelancer can reject this transaction', 403));
+    }
+
+    // Check if payment is already processed
+    if (payment.transactionStatus === 'PAID' && payment.verified) {
+      return next(new ErrorResponse('Transaction is already verified', 400));
+    }
+
+    // Update payment status to rejected
+    payment.transactionStatus = 'REJECTED';
+    payment.rejectionReason = rejectionReason || 'Transaction details could not be verified';
+    payment.rejectedAt = new Date();
+    payment.rejectedBy = req.user.id;
+    await payment.save();
+
+    // Send email notification to freelancer
+    try {
+      const recruiter = await User.findById(payment.project.postedBy);
+      const milestone = await Milestone.findById(payment.milestone);
+      const milestoneInfo = progressLevels[milestone.level];
+
+      if (recruiter && payment.freelancer) {
+        await sendTransactionRejectionEmailToFreelancer(
+          payment.freelancer.email,
+          payment.freelancer.name,
+          payment.project.title,
+          payment.project.company || 'Company',
+          payment.amount,
+          payment.transactionId,
+          milestoneInfo.status,
+          payment.rejectionReason
+        );
+
+        console.log('Transaction rejection email sent to freelancer');
+      }
+    } catch (emailError) {
+      console.error('Error sending transaction rejection email:', emailError);
+      // Continue with the response even if email fails
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        payment,
+        message: 'Transaction rejected successfully'
+      }
+    });
+  } catch (error) {
+    console.error('Error rejecting transaction:', error);
     next(error);
   }
 };

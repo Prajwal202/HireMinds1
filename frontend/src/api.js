@@ -1311,6 +1311,73 @@ export const paymentAPI = {
       console.error('Error recording UPI payment:', error);
       throw error;
     }
+  },
+
+  // Submit transaction details (for recruiter)
+  submitTransaction: async (projectId, amount, milestoneLevel, transactionId, freelancerUpiId) => {
+    try {
+      const response = await API.post('/v1/payments/submit-transaction', {
+        projectId,
+        amount,
+        milestoneLevel,
+        transactionId,
+        freelancerUpiId
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error submitting transaction:', error);
+      throw error;
+    }
+  },
+
+  // Accept transaction (for freelancer verification)
+  verifyTransaction: async (paymentId) => {
+    try {
+      const response = await API.post('/v1/payments/verify-transaction', { paymentId });
+      return response.data;
+    } catch (error) {
+      console.error('Error verifying transaction:', error);
+      throw error;
+    }
+  },
+
+  // Reject transaction (for freelancer verification)
+  rejectTransactionAsFreelancer: async (paymentId, rejectionReason) => {
+    try {
+      const response = await API.post('/v1/payments/reject-transaction-freelancer', { 
+        paymentId, 
+        rejectionReason 
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error rejecting transaction:', error);
+      throw error;
+    }
+  },
+
+  // Accept transaction (for recruiter confirmation)
+  acceptTransaction: async (paymentId) => {
+    try {
+      const response = await API.post('/v1/payments/accept-transaction', { paymentId });
+      return response.data;
+    } catch (error) {
+      console.error('Error accepting transaction:', error);
+      throw error;
+    }
+  },
+
+  // Reject transaction (for recruiter confirmation)
+  rejectTransaction: async (paymentId, rejectionReason) => {
+    try {
+      const response = await API.post('/v1/payments/reject-transaction', { 
+        paymentId, 
+        rejectionReason 
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error rejecting transaction:', error);
+      throw error;
+    }
   }
 };
 

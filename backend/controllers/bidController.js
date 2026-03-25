@@ -3,6 +3,7 @@ const Job = require('../models/Job');
 const User = require('../models/User');
 const ErrorResponse = require('../utils/errorResponse');
 const mongoose = require('mongoose');
+const { sendBidAcceptanceEmailToFreelancer, sendBidAcceptanceEmailToRecruiter, sendBidSubmissionEmailToRecruiter, sendBidSubmissionConfirmationEmailToFreelancer } = require('../utils/emailService');
 
 // @desc    Get all bids for a recruiter
 // @route   GET /api/v1/bids/recruiter
@@ -148,6 +149,38 @@ exports.createBid = async (req, res, next) => {
       .populate('freelancer', 'name email')
       .populate('job', 'title company');
 
+    // Send email notifications for bid submission
+    try {
+      // Get recruiter details
+      const recruiter = await User.findById(job.postedBy);
+
+      if (recruiter) {
+        // Send email to recruiter about new bid
+        await sendBidSubmissionEmailToRecruiter(
+          recruiter.email,
+          recruiter.name,
+          req.user.name, // Freelancer name
+          job.title,
+          bidAmount,
+          coverLetter
+        );
+
+        // Send confirmation email to freelancer
+        await sendBidSubmissionConfirmationEmailToFreelancer(
+          req.user.email, // Freelancer email
+          req.user.name, // Freelancer name
+          job.title,
+          job.company || 'Company',
+          bidAmount
+        );
+
+        console.log('Bid submission emails sent successfully');
+      }
+    } catch (emailError) {
+      console.error('Error sending bid submission emails:', emailError);
+      // Continue with the response even if email fails
+    }
+
     res.status(201).json({
       success: true,
       message: "Bid submitted successfully",
@@ -211,6 +244,38 @@ exports.acceptBid = async (req, res, next) => {
       session.endSession();
 
       console.log(`Job ${job._id} allocated to freelancer ${bid.freelancer}`);
+
+      // Send email notifications
+      try {
+        // Get user details for emails
+        const freelancer = await User.findById(bid.freelancer);
+        const recruiter = await User.findById(job.postedBy);
+
+        if (freelancer && recruiter) {
+          // Send email to freelancer
+          await sendBidAcceptanceEmailToFreelancer(
+            freelancer.email,
+            freelancer.name,
+            job.title,
+            job.company || 'Company',
+            bid.bidAmount
+          );
+
+          // Send email to recruiter
+          await sendBidAcceptanceEmailToRecruiter(
+            recruiter.email,
+            recruiter.name,
+            freelancer.name,
+            job.title,
+            bid.bidAmount
+          );
+
+          console.log('Email notifications sent for bid acceptance');
+        }
+      } catch (emailError) {
+        console.error('Error sending email notifications:', emailError);
+        // Continue with the response even if email fails
+      }
 
       // Emit socket event for job allocation to enable messaging
       const io = req.app.get('io');

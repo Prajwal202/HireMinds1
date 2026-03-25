@@ -38,6 +38,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
     "natural": "^6.5.1",
+    "nodemailer": "^8.0.4",
     "razorpay": "^2.9.6",
     "razorpayx": "^1.0.3",
     "socket.io": "^4.8.3",

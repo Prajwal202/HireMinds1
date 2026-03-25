@@ -19,7 +19,13 @@ const env = {
   RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX || 100,
   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || '',
   RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || '',
-  RAZORPAYX_ACCOUNT_NUMBER: process.env.RAZORPAYX_ACCOUNT_NUMBER || ''
+  RAZORPAYX_ACCOUNT_NUMBER: process.env.RAZORPAYX_ACCOUNT_NUMBER || '',
+  SMTP_HOST: process.env.SMTP_HOST || 'smtp.gmail.com',
+  SMTP_PORT: process.env.SMTP_PORT || 587,
+  SMTP_USER: process.env.SMTP_USER || 'hiremindssupport@gmail.com',
+  SMTP_PASS: process.env.SMTP_PASS || 'sxyk yngp auqz irxv',
+  FROM_EMAIL: process.env.FROM_EMAIL || 'hiremindssupport@gmail.com',
+  FROM_NAME: process.env.FROM_NAME || 'HireMinds Support'
 };
 
 Object.keys(env).forEach((key) => {

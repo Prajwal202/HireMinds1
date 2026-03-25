@@ -1,33 +1,95 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Clock, Send, X } from 'lucide-react';
+import { paymentAPI } from '../api';
 import toast from 'react-hot-toast';
 
 const PaymentVerification = ({ user }) => {
   const [pendingTransactions, setPendingTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Mock data - in real app, this would come from backend API
+  // Load transactions from backend API
   useEffect(() => {
-    const loadTransactions = () => {
-      // Get transactions from localStorage (simulating backend)
-      const storedTransactions = JSON.parse(localStorage.getItem('paymentVerifications') || '[]');
-      
-      // Filter for current user's transactions (where they are the freelancer) and only PENDING ones
-      const userTransactions = storedTransactions.filter(transaction => 
-        (transaction.freelancerId === user?.id || 
-        transaction.freelancerId === user?._id) &&
-        transaction.status === 'PENDING'
-      );
-      
-      // Add unique IDs if not present
-      const transactionsWithIds = userTransactions.map((transaction, index) => ({
-        ...transaction,
-        id: transaction.id || `txn_${Date.now()}_${index}`,
-        recruiterName: transaction.recruiterName || 'Recruiter'
-      }));
-      
-      setPendingTransactions(transactionsWithIds);
-      setLoading(false);
+    const loadTransactions = async () => {
+      try {
+        setLoading(true);
+        
+        // Get freelancer payments from backend API
+        const response = await paymentAPI.getFreelancerPayments();
+        
+        console.log('🔍 PaymentVerification - API Response:', response);
+        
+        if (response.success && response.data.payments) {
+          console.log('🔍 PaymentVerification - All payments:', response.data.payments);
+          
+          // Filter for pending transactions (where freelancer needs to verify)
+          const pendingPayments = response.data.payments.filter(payment => {
+            const isForThisFreelancer = (
+              payment.freelancer?._id === user?.id || 
+              payment.freelancer === user?.id ||
+              payment.freelancer === user?._id
+            );
+            
+            const isPending = (
+              payment.transactionStatus === 'CREATED' && 
+              !payment.verified
+            );
+            
+            console.log('🔍 Payment check:', {
+              paymentId: payment._id,
+              freelancerId: payment.freelancer,
+              currentUserId: user?.id,
+              currentUserId_alt: user?._id,
+              isForThisFreelancer,
+              transactionStatus: payment.transactionStatus,
+              verified: payment.verified,
+              isPending
+            });
+            
+            return isForThisFreelancer && isPending;
+          });
+          
+          console.log('🔍 PaymentVerification - Pending payments:', pendingPayments);
+          
+          // Add unique IDs if not present
+          const transactionsWithIds = pendingPayments.map((payment, index) => {
+            const status = (
+              payment.transactionStatus === 'CREATED' && 
+              !payment.verified
+            ) ? 'PENDING' : 
+            (payment.verified ? 'ACCEPTED' : 
+            (payment.transactionStatus === 'REJECTED' ? 'REJECTED' : 'PENDING'));
+            
+            console.log('🔍 Setting transaction status:', {
+              paymentId: payment._id,
+              transactionStatus: payment.transactionStatus,
+              verified: payment.verified,
+              calculatedStatus: status
+            });
+            
+            return {
+              ...payment,
+              id: payment._id || `txn_${Date.now()}_${index}`,
+              recruiterName: payment.recruiter?.name || 'Recruiter',
+              projectName: payment.project?.title || 'Project',
+              submittedAt: payment.createdAt ? new Date(payment.createdAt) : new Date(),
+              status
+            };
+          });
+          
+          setPendingTransactions(transactionsWithIds);
+          
+          if (pendingPayments.length === 0) {
+            console.log('🔍 PaymentVerification - No pending transactions found');
+          } else {
+            console.log(`🔍 PaymentVerification - Found ${pendingPayments.length} pending transactions`);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading transactions:', error);
+        toast.error('Failed to load payment verifications');
+      } finally {
+        setLoading(false);
+      }
     };
 
     // Initial load
@@ -57,66 +119,54 @@ const PaymentVerification = ({ user }) => {
         )
       );
       
-      // Update localStorage
-      const storedTransactions = JSON.parse(localStorage.getItem('paymentVerifications') || '[]');
-      const updatedTransactions = storedTransactions.map(t => 
-        (t.transactionId === transaction.transactionId && t.freelancerId === user?.id) 
-          ? { ...t, status: 'ACCEPTED' }
-          : t
-      );
-      localStorage.setItem('paymentVerifications', JSON.stringify(updatedTransactions));
+      toast.success('✅ Accepting payment...');
       
-      toast.success('✅ Payment accepted and recorded!');
+      // Call the correct backend API for freelancer to verify transaction
+      const response = await paymentAPI.verifyTransaction(transaction._id || transaction.id);
       
-      // In real app, this would call backend API to:
-      // 1. Record the payment in the database
-      // 2. Update transaction status
-      // 3. Notify the recruiter
-      // 4. Add to payment history
-      
-      console.log('Payment accepted:', transaction);
-      
-      // Simulate backend call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Remove from pending after successful recording
-      setTimeout(() => {
-        setPendingTransactions(prev => prev.filter(t => t.id !== transaction.id));
+      if (response.success) {
+        toast.success('✅ Payment accepted and recorded!');
         
-        // Update status in localStorage to ACCEPTED (keep for payment history)
-        const storedTransactions = JSON.parse(localStorage.getItem('paymentVerifications') || '[]');
-        const updatedTransactions = storedTransactions.map(t => 
-          (t.transactionId === transaction.transactionId && t.freelancerId === user?.id) 
-            ? { ...t, status: 'ACCEPTED' }
-            : t
-        );
-        localStorage.setItem('paymentVerifications', JSON.stringify(updatedTransactions));
+        console.log('Payment accepted:', transaction);
         
-        // Notify recruiter dashboard to refresh payments
-        console.log('📡 Dispatching paymentAccepted event:', {
-          transactionId: transaction.transactionId,
-          amount: transaction.amount,
-          recruiterId: transaction.recruiterId
-        });
-        
-        window.dispatchEvent(new CustomEvent('paymentAccepted', { 
-          detail: {
+        // Remove from pending after successful recording
+        setTimeout(() => {
+          setPendingTransactions(prev => prev.filter(t => t.id !== transaction.id));
+          
+          // Notify recruiter dashboard to refresh payments
+          console.log('📡 Dispatching paymentAccepted event:', {
             transactionId: transaction.transactionId,
             amount: transaction.amount,
             recruiterId: transaction.recruiterId
-          }
-        }));
-        
-        // Notify freelancer payments page to refresh
-        window.dispatchEvent(new CustomEvent('freelancerPaymentAccepted', { 
-          detail: {
-            transactionId: transaction.transactionId,
-            amount: transaction.amount,
-            freelancerId: transaction.freelancerId
-          }
-        }));
-      }, 2000);
-      
+          });
+          
+          window.dispatchEvent(new CustomEvent('paymentAccepted', { 
+            detail: {
+              transactionId: transaction.transactionId,
+              amount: transaction.amount,
+              recruiterId: transaction.recruiterId
+            }
+          }));
+          
+          // Notify freelancer payments page to refresh
+          window.dispatchEvent(new CustomEvent('freelancerPaymentAccepted', { 
+            detail: {
+              transactionId: transaction.transactionId,
+              amount: transaction.amount,
+              freelancerId: transaction.freelancerId
+            }
+          }));
+        }, 2000);
+      } else {
+        // Revert state on error
+        setPendingTransactions(prev => 
+          prev.map(t => t.id === transaction.id 
+            ? { ...t, status: 'PENDING' }
+            : t
+          )
+        );
+        toast.error(response.message || 'Failed to accept payment');
+      }
     } catch (error) {
       // Revert state on error
       setPendingTransactions(prev => 
@@ -126,8 +176,8 @@ const PaymentVerification = ({ user }) => {
         )
       );
       
-      toast.error('Failed to accept payment');
       console.error('Error accepting payment:', error);
+      toast.error(error.response?.data?.error || 'Failed to accept payment');
     }
   };
 
@@ -141,39 +191,33 @@ const PaymentVerification = ({ user }) => {
         )
       );
       
-      // Update localStorage
-      const storedTransactions = JSON.parse(localStorage.getItem('paymentVerifications') || '[]');
-      const updatedTransactions = storedTransactions.map(t => 
-        (t.transactionId === transaction.transactionId && t.freelancerId === user?.id) 
-          ? { ...t, status: 'REJECTED' }
-          : t
+      toast.error('❌ Rejecting payment...');
+      
+      // Call the correct backend API for freelancer to reject transaction
+      const response = await paymentAPI.rejectTransactionAsFreelancer(
+        transaction._id || transaction.id, 
+        'Payment verification failed - transaction details do not match'
       );
-      localStorage.setItem('paymentVerifications', JSON.stringify(updatedTransactions));
       
-      toast.error('❌ Payment rejected. Please contact recruiter.');
-      
-      // In real app, this would call backend API to:
-      // 1. Mark transaction as rejected
-      // 2. Notify the recruiter
-      // 3. Create dispute record if needed
-      
-      console.log('Payment rejected:', transaction);
-      
-      // Simulate backend call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Keep rejected transaction visible for a while, then remove
-      setTimeout(() => {
-        setPendingTransactions(prev => prev.filter(t => t.id !== transaction.id));
+      if (response.success) {
+        toast.error('❌ Payment rejected. Please contact recruiter.');
         
-        // Also remove from localStorage
-        const finalTransactions = JSON.parse(localStorage.getItem('paymentVerifications') || '[]');
-        const filteredTransactions = finalTransactions.filter(t => 
-          !(t.transactionId === transaction.transactionId && t.freelancerId === user?.id)
+        console.log('Payment rejected:', transaction);
+        
+        // Remove from pending after rejection
+        setTimeout(() => {
+          setPendingTransactions(prev => prev.filter(t => t.id !== transaction.id));
+        }, 2000);
+      } else {
+        // Revert state on error
+        setPendingTransactions(prev => 
+          prev.map(t => t.id === transaction.id 
+            ? { ...t, status: 'PENDING' }
+            : t
+          )
         );
-        localStorage.setItem('paymentVerifications', JSON.stringify(filteredTransactions));
-      }, 5000);
-      
+        toast.error(response.message || 'Failed to reject payment');
+      }
     } catch (error) {
       // Revert state on error
       setPendingTransactions(prev => 
@@ -183,8 +227,8 @@ const PaymentVerification = ({ user }) => {
         )
       );
       
-      toast.error('Failed to reject payment');
       console.error('Error rejecting payment:', error);
+      toast.error(error.response?.data?.error || 'Failed to reject payment');
     }
   };
 
@@ -280,19 +324,19 @@ const PaymentVerification = ({ user }) => {
                   <span className="font-medium">Project:</span> {transaction.projectName}
                 </div>
                 <div>
-                  <span className="font-medium">Amount:</span> ₹{transaction.amount.toLocaleString()}
+                  <span className="font-medium">Amount:</span> ₹{transaction.amount?.toLocaleString() || '0'}
                 </div>
                 <div>
                   <span className="font-medium">Transaction ID:</span> {transaction.transactionId}
                 </div>
                 <div>
-                  <span className="font-medium">UPI ID:</span> {transaction.upiId}
+                  <span className="font-medium">UPI ID:</span> {transaction.gatewayOrderId?.includes('UPI') ? 'UPI Payment' : 'Direct Transfer'}
                 </div>
                 <div>
                   <span className="font-medium">Recruiter:</span> {transaction.recruiterName}
                 </div>
                 <div>
-                  <span className="font-medium">Submitted:</span> {transaction.submittedAt.toLocaleString()}
+                  <span className="font-medium">Submitted:</span> {transaction.submittedAt?.toLocaleString()}
                 </div>
               </div>
             </div>

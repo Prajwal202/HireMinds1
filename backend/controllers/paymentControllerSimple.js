@@ -1,7 +1,9 @@
 const axios = require('axios');
 const Job = require('../models/Job');
 const FreelancerProfile = require('../models/FreelancerProfile');
+const User = require('../models/User');
 const ErrorResponse = require('../utils/errorResponse');
+const { sendPaymentCompletionEmailToFreelancer, sendPaymentCompletionEmailToRecruiter } = require('../utils/emailService');
 
 // Progress level mapping
 const progressLevels = {
@@ -430,6 +432,42 @@ exports.releasePaymentToFreelancer = async (req, res, next) => {
         }
       }
     });
+
+    // Send email notifications after successful response
+    try {
+      // Get user details for emails
+      const freelancer = await User.findById(project.allocatedTo);
+      const recruiter = await User.findById(project.postedBy);
+
+      if (freelancer && recruiter) {
+        const milestoneInfo = progressLevels[milestoneLevel] || { status: 'Milestone', percentage: 0 };
+
+        // Send email to freelancer
+        await sendPaymentCompletionEmailToFreelancer(
+          freelancer.email,
+          freelancer.name,
+          project.title,
+          project.company || 'Company',
+          payoutAmountInRupees,
+          milestoneInfo.status
+        );
+
+        // Send email to recruiter
+        await sendPaymentCompletionEmailToRecruiter(
+          recruiter.email,
+          recruiter.name,
+          freelancer.name,
+          project.title,
+          payoutAmountInRupees,
+          milestoneInfo.status
+        );
+
+        console.log('Email notifications sent for payment completion');
+      }
+    } catch (emailError) {
+      console.error('Error sending payment email notifications:', emailError);
+      // Don't throw error here as payment is already processed
+    }
   } catch (error) {
     if (error instanceof ErrorResponse) {
       return next(error);

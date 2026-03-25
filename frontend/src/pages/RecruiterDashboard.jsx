@@ -2,7 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 
 
+
+
+
+
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+
+
+
+
 
 
 
@@ -10,7 +18,15 @@ import { motion } from 'framer-motion';
 
 
 
+
+
+
+
 import { 
+
+
+
+
 
 
 
@@ -18,7 +34,15 @@ import {
 
 
 
+
+
+
+
   Users, 
+
+
+
+
 
 
 
@@ -26,7 +50,15 @@ import {
 
 
 
+
+
+
+
   FileText,
+
+
+
+
 
 
 
@@ -34,7 +66,15 @@ import {
 
 
 
+
+
+
+
   CheckCircle,
+
+
+
+
 
 
 
@@ -42,7 +82,15 @@ import {
 
 
 
+
+
+
+
   Eye,
+
+
+
+
 
 
 
@@ -50,7 +98,15 @@ import {
 
 
 
+
+
+
+
   DollarSign,
+
+
+
+
 
 
 
@@ -58,7 +114,15 @@ import {
 
 
 
+
+
+
+
   Edit,
+
+
+
+
 
 
 
@@ -66,7 +130,15 @@ import {
 
 
 
+
+
+
+
   Calendar,
+
+
+
+
 
 
 
@@ -74,7 +146,15 @@ import {
 
 
 
+
+
+
+
   Bell,
+
+
+
+
 
 
 
@@ -82,7 +162,15 @@ import {
 
 
 
+
+
+
+
   TrendingDown,
+
+
+
+
 
 
 
@@ -90,7 +178,15 @@ import {
 
 
 
+
+
+
+
   Zap,
+
+
+
+
 
 
 
@@ -98,7 +194,15 @@ import {
 
 
 
+
+
+
+
   UserCheck,
+
+
+
+
 
 
 
@@ -106,7 +210,15 @@ import {
 
 
 
+
+
+
+
   Search
+
+
+
+
 
 
 
@@ -114,7 +226,15 @@ import {
 
 
 
+
+
+
+
 import { useAuth } from '../contexts/AuthContext';
+
+
+
+
 
 
 
@@ -122,7 +242,15 @@ import { jobAPI, bidAPI, authAPI, projectAPI, paymentAPI } from '../api';
 
 
 
+
+
+
+
 import { formatSalaryToINR } from '../utils/currency';
+
+
+
+
 
 
 
@@ -134,7 +262,19 @@ import toast from 'react-hot-toast';
 
 
 
+
+
+
+
+
+
+
+
 const RecruiterDashboard = () => {
+
+
+
+
 
 
 
@@ -142,7 +282,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const navigate = useNavigate();
+
+
+
+
 
 
 
@@ -150,7 +298,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const [jobs, setJobs] = useState([]);
+
+
+
+
 
 
 
@@ -158,7 +314,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const [activeProjects, setActiveProjects] = useState([]);
+
+
+
+
 
 
 
@@ -166,7 +330,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+
+
+
 
 
 
@@ -174,7 +346,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const [lastUpdated, setLastUpdated] = useState(null);
+
+
+
+
 
 
 
@@ -182,7 +362,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const [autoRefresh, setAutoRefresh] = useState(false);
+
+
+
+
 
 
 
@@ -190,7 +378,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const [searchTerm, setSearchTerm] = useState('');
+
+
+
+
 
 
 
@@ -198,7 +394,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const [recentPayments, setRecentPayments] = useState([]);
+
+
+
+
 
 
 
@@ -210,7 +414,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
   // Notification system
+
+
+
+
 
 
 
@@ -218,11 +434,27 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     setNotifications(prev => [notification, ...prev].slice(0, 5));
 
 
 
+
+
+
+
   }, []);
+
+
+
+
+
+
+
+
 
 
 
@@ -234,7 +466,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     setNotifications(prev => prev.filter((_, i) => i !== index));
+
+
+
+
 
 
 
@@ -246,89 +486,187 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
   // Auto-refresh functionality
+
+
 
   useEffect(() => {
 
+
+
     if (user) {
+
+
 
       refreshJobs();
 
+
+
       fetchBids();
 
+
+
     }
+
+
 
   }, [user]);
 
 
 
+
+
+
+
   // Listen for payment acceptance events
+
+
 
   useEffect(() => {
 
+
+
     console.log('👂 Setting up paymentAccepted event listener for recruiter:', user?.id);
+
+
 
     
 
+
+
     const handlePaymentAccepted = (event) => {
+
+
 
       console.log('🔔 Payment accepted event received:', event.detail);
 
+
+
       console.log('🔔 Current user ID:', user?.id);
+
+
 
       console.log('🔔 Event recruiter ID:', event.detail.recruiterId);
 
+
+
       console.log('🔔 IDs match:', event.detail.recruiterId === user?.id);
+
+
 
       
 
+
+
       // Only refresh if this payment is for current recruiter
+
+
 
       if (event.detail.recruiterId === user?.id) {
 
+
+
         console.log('🔄 Refreshing recruiter dashboard payments...');
+
+
 
         fetchRecentPayments();
 
+
+
         
+
+
 
         // Show notification to recruiter
 
+
+
         addNotification({
+
+
 
           type: 'success',
 
+
+
           message: `Payment of ₹${event.detail.amount?.toLocaleString()} accepted by freelancer!`,
+
+
 
           timestamp: new Date()
 
+
+
         });
+
+
 
       } else {
 
+
+
         console.log('❌ Payment not for current recruiter, ignoring...');
+
+
 
       }
 
+
+
     };
+
+
+
+
 
 
 
     window.addEventListener('paymentAccepted', handlePaymentAccepted);
 
+
+
     console.log('✅ paymentAccepted event listener added');
+
+
+
+
 
 
 
     return () => {
 
+
+
       console.log('🗑️ Removing paymentAccepted event listener');
+
+
 
       window.removeEventListener('paymentAccepted', handlePaymentAccepted);
 
+
+
     };
 
+
+
   }, [user?.id]);
+
+
+
+
+
+
+
+
 
 
 
@@ -340,7 +678,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const toggleAutoRefresh = useCallback(() => {
+
+
+
+
 
 
 
@@ -348,7 +694,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     if (!autoRefresh) {
+
+
+
+
 
 
 
@@ -356,7 +710,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     } else {
+
+
+
+
 
 
 
@@ -364,7 +726,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     }
+
+
+
+
 
 
 
@@ -376,209 +746,427 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
   // Fetch bids for the recruiter
+
+
 
   const fetchBids = async () => {
 
+
+
     try {
+
+
 
       console.log('Fetching bids for recruiter...');
 
+
+
       const response = await bidAPI.getRecruiterBids();
+
+
 
       console.log('Bids response:', response);
 
 
 
+
+
+
+
       if (response.success) {
+
+
 
         const newBids = response.data;
 
+
+
         
+
+
 
         // Check for new bids
 
+
+
         if (bids.length > 0 && newBids.length > bids.length) {
+
+
 
           addNotification({
 
+
+
             type: 'success',
+
+
 
             message: `New bid received on ${newBids[newBids.length - 1].job?.title || 'a job'}`,
 
+
+
             timestamp: new Date()
+
+
 
           });
 
+
+
         }
+
+
 
         
 
+
+
         setBids(newBids);
+
+
 
         console.log('Bids loaded:', newBids.length);
 
+
+
       }
+
+
 
     } catch (error) {
 
+
+
       console.error('Error fetching bids:', error);
+
+
 
       // Don't show error toast for bids as it's not critical
 
+
+
     }
 
+
+
   };
+
+
+
+
 
 
 
   // Fetch recent payments for the recruiter
 
+
+
   const fetchRecentPayments = async () => {
+
+
 
     try {
 
+
+
       console.log('🔄 Starting fetchRecentPayments...');
 
+
+
       
+
+
 
       // Get all projects for this recruiter
 
+
+
       const recruiterProjects = jobs.filter(job => 
+
+
 
         job.status === 'allocated' || job.allocatedTo
 
+
+
       );
+
+
 
       console.log('📋 Recruiter projects:', recruiterProjects);
 
+
+
       
+
+
 
       const allPayments = [];
 
+
+
       
+
+
 
       // Fetch payments for each allocated project
 
+
+
       for (const project of recruiterProjects) {
+
+
 
         try {
 
+
+
           const response = await paymentAPI.getProjectPayments(project._id);
+
+
 
           if (response.success && response.data?.payments) {
 
+
+
             const paidPayments = response.data.payments.filter(p => p.transactionStatus === 'PAID');
+
+
 
             allPayments.push(...paidPayments.map(p => ({
 
+
+
               ...p,
+
+
 
               projectTitle: project.title,
 
+
+
               projectName: project.title
+
+
 
             })));
 
+
+
           }
+
+
 
         } catch (error) {
 
+
+
           console.error(`Error fetching payments for project ${project._id}:`, error);
+
+
 
         }
 
+
+
       }
 
+
+
       
+
+
 
       console.log('💰 Backend payments:', allPayments);
 
+
+
       
+
+
 
       // Also fetch accepted payments from verification system
 
+
+
       const storedVerifications = JSON.parse(localStorage.getItem('paymentVerifications') || '[]');
+
+
 
       console.log('📦 All stored verifications:', storedVerifications);
 
+
+
       
+
+
 
       const recruiterPayments = storedVerifications.filter(verification => 
 
+
+
         verification.recruiterId === user?.id && 
+
+
 
         verification.status === 'ACCEPTED'
 
+
+
       );
+
+
 
       console.log('👤 Recruiter verification payments:', recruiterPayments);
 
+
+
       
+
+
 
       // Convert verifications to payment format
 
+
+
       const acceptedPayments = recruiterPayments.map(verification => ({
+
+
 
         _id: verification.transactionId || `verification_${Date.now()}`,
 
+
+
         amount: verification.amount,
+
+
 
         transactionId: verification.transactionId,
 
+
+
         paidAt: verification.submittedAt,
+
+
 
         transactionStatus: 'PAID',
 
+
+
         gateway: 'UPI_DIRECT',
+
+
 
         projectTitle: verification.projectName,
 
+
+
         projectName: verification.projectName,
+
+
 
         freelancer: verification.freelancerId,
 
+
+
         recruiter: verification.recruiterId,
+
+
 
         isFromVerification: true // Flag to identify verification payments
 
+
+
       }));
 
+
+
       
+
+
 
       console.log('✅ Converted accepted payments:', acceptedPayments);
 
+
+
       
+
+
 
       // Combine both payment sources
 
+
+
       const combinedPayments = [...allPayments, ...acceptedPayments];
+
+
 
       console.log('🔗 Combined payments before sorting:', combinedPayments);
 
+
+
       
+
+
 
       // Sort by paidAt date (most recent first)
 
+
+
       combinedPayments.sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
+
+
 
       console.log('📊 Final payments after sorting:', combinedPayments);
 
+
+
       
+
+
 
       console.log('🔄 Setting recentPayments state...');
 
+
+
       setRecentPayments(combinedPayments);
+
+
 
       console.log('✅ fetchRecentPayments completed!');
 
+
+
     } catch (error) {
+
+
 
       console.error('Error fetching recent payments:', error);
 
+
+
     }
 
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -590,7 +1178,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const refreshJobs = async () => {
+
+
+
+
 
 
 
@@ -598,7 +1194,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       setIsRefreshing(true);
+
+
+
+
 
 
 
@@ -606,7 +1210,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       // Try getMyJobs first, fallback to getAllJobs if it fails
+
+
+
+
 
 
 
@@ -614,7 +1226,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       try {
+
+
+
+
 
 
 
@@ -622,7 +1242,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         console.log('Manual getMyJobs response:', response);
+
+
+
+
 
 
 
@@ -630,7 +1258,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         console.log('Manual getMyJobs failed, trying getAllJobs:', myJobsError);
+
+
+
+
 
 
 
@@ -638,7 +1274,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         console.log('Manual getAllJobs response:', response);
+
+
+
+
 
 
 
@@ -646,7 +1290,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         if (response.success && user) {
+
+
+
+
 
 
 
@@ -654,7 +1306,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             job.postedBy && (job.postedBy._id === user.id || job.postedBy === user.id)
+
+
+
+
 
 
 
@@ -662,7 +1322,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           console.log('Manual filtered jobs for current user:', response.data);
+
+
+
+
 
 
 
@@ -670,7 +1338,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       }
+
+
+
+
 
 
 
@@ -678,7 +1354,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       // Check for new bids or status changes
+
+
+
+
 
 
 
@@ -686,11 +1370,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         const newJobs = response.data;
 
 
 
+
+
+
+
         
+
+
+
+
 
 
 
@@ -698,7 +1394,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         if (jobs.length > 0 && newJobs.length > jobs.length) {
+
+
+
+
 
 
 
@@ -706,7 +1410,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             type: 'info',
+
+
+
+
 
 
 
@@ -714,7 +1426,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             timestamp: new Date()
+
+
+
+
 
 
 
@@ -722,7 +1442,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         }
+
+
+
+
 
 
 
@@ -730,7 +1458,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         setJobs(newJobs);
+
+
+
+
 
 
 
@@ -738,7 +1474,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         toast.success(`Dashboard refreshed! Found ${newJobs.length} jobs`);
+
+
+
+
 
 
 
@@ -746,7 +1490,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         toast.error('Failed to load jobs: ' + (response.message || 'Unknown error'));
+
+
+
+
 
 
 
@@ -754,7 +1506,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     } catch (error) {
+
+
+
+
 
 
 
@@ -762,7 +1522,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       toast.error('Failed to refresh jobs');
+
+
+
+
 
 
 
@@ -770,7 +1538,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       setIsRefreshing(false);
+
+
+
+
 
 
 
@@ -778,13 +1554,31 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     // Also fetch bids after refreshing jobs
+
+
 
     fetchBids();
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -796,7 +1590,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const formatTimeAgo = (timestamp) => {
+
+
+
+
 
 
 
@@ -804,7 +1606,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     const time = new Date(timestamp);
+
+
+
+
 
 
 
@@ -812,7 +1622,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     
+
+
+
+
 
 
 
@@ -820,7 +1638,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     const hours = Math.floor(diff / 3600000);
+
+
+
+
 
 
 
@@ -828,7 +1654,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     
+
+
+
+
 
 
 
@@ -836,7 +1670,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+
+
+
+
 
 
 
@@ -844,11 +1686,27 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     return `${days} day${days > 1 ? 's' : ''} ago`;
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -860,7 +1718,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     switch (trend) {
+
+
+
+
 
 
 
@@ -868,7 +1734,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return <TrendingUp className="w-4 h-4 text-green-600" />;
+
+
+
+
 
 
 
@@ -876,7 +1750,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return <TrendingDown className="w-4 h-4 text-red-600" />;
+
+
+
+
 
 
 
@@ -884,7 +1766,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return <div className="w-4 h-4" />;
+
+
+
+
 
 
 
@@ -892,7 +1782,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -904,7 +1806,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const filteredJobs = jobs.filter(job => {
+
+
+
+
 
 
 
@@ -912,7 +1822,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                          job.company.toLowerCase().includes(searchTerm.toLowerCase());
+
+
+
+
 
 
 
@@ -920,7 +1838,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     return matchesSearch && matchesStatus;
+
+
+
+
 
 
 
@@ -932,7 +1858,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
   // Skeleton loader component
+
+
+
+
 
 
 
@@ -940,7 +1878,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 animate-pulse">
+
+
+
+
 
 
 
@@ -948,7 +1894,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         <div className="bg-gray-300 p-3 rounded-lg w-12 h-12"></div>
+
+
+
+
 
 
 
@@ -956,7 +1910,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       <div className="h-8 bg-gray-300 rounded mb-2 w-16"></div>
+
+
+
+
 
 
 
@@ -964,7 +1926,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       <div className="h-3 bg-gray-300 rounded w-20"></div>
+
+
+
+
 
 
 
@@ -972,7 +1942,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   );
+
+
+
+
+
+
+
+
 
 
 
@@ -984,7 +1966,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const testAuth = async () => {
+
+
+
+
 
 
 
@@ -992,7 +1982,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     console.log('Current user:', user);
+
+
+
+
 
 
 
@@ -1000,7 +1998,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     
+
+
+
+
 
 
 
@@ -1008,7 +2014,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       const response = await authAPI.getMe();
+
+
+
+
 
 
 
@@ -1016,7 +2030,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       toast.success('Authentication working!');
+
+
+
+
 
 
 
@@ -1024,7 +2046,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       console.error('Auth test failed:', error);
+
+
+
+
 
 
 
@@ -1032,11 +2062,27 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     }
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -1048,7 +2094,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   useEffect(() => {
+
+
+
+
 
 
 
@@ -1056,11 +2110,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       setRefreshKey(prev => prev + 1);
 
 
 
+
+
+
+
     }
+
+
+
+
 
 
 
@@ -1072,7 +2138,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
   // Trigger refresh when returning from Applicants page (after bid actions)
+
+
+
+
 
 
 
@@ -1080,7 +2158,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     // Check if we're coming from Applicants page
+
+
+
+
 
 
 
@@ -1088,7 +2174,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                        location.state?.from === 'applicants';
+
+
+
+
 
 
 
@@ -1096,7 +2190,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       console.log('Returning from Applicants page - refreshing dashboard data');
+
+
+
+
 
 
 
@@ -1104,7 +2206,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     }
+
+
+
+
 
 
 
@@ -1116,7 +2226,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
   // Fetch jobs on component mount and when location changes or refresh state is set
+
+
+
+
 
 
 
@@ -1124,7 +2246,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     const fetchJobs = async () => {
+
+
+
+
 
 
 
@@ -1132,7 +2262,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         setLoading(true);
+
+
+
+
 
 
 
@@ -1140,7 +2278,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         
+
+
+
+
 
 
 
@@ -1148,7 +2294,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         const [jobsResponse, projectsResponse] = await Promise.allSettled([
+
+
+
+
 
 
 
@@ -1156,7 +2310,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             // Try getMyJobs first, fallback to getAllJobs if it fails
+
+
+
+
 
 
 
@@ -1164,7 +2326,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             try {
+
+
+
+
 
 
 
@@ -1172,7 +2342,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               console.log('getMyJobs response:', response);
+
+
+
+
 
 
 
@@ -1180,7 +2358,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               console.log('getMyJobs failed, trying getAllJobs:', myJobsError);
+
+
+
+
 
 
 
@@ -1188,7 +2374,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               console.log('getAllJobs response:', response);
+
+
+
+
 
 
 
@@ -1196,7 +2390,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               if (response.success && user) {
+
+
+
+
 
 
 
@@ -1204,7 +2406,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   job.postedBy && (job.postedBy._id === user.id || job.postedBy === user.id)
+
+
+
+
 
 
 
@@ -1212,7 +2422,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 console.log('Filtered jobs for current user:', response.data);
+
+
+
+
 
 
 
@@ -1220,7 +2438,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             }
+
+
+
+
 
 
 
@@ -1228,7 +2454,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           })(),
+
+
+
+
 
 
 
@@ -1236,7 +2470,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             console.log('Failed to fetch active projects:', err);
+
+
+
+
 
 
 
@@ -1244,7 +2486,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           })
+
+
+
+
 
 
 
@@ -1256,7 +2506,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
         // Process jobs response
+
+
+
+
 
 
 
@@ -1264,7 +2526,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         console.log('Final API response:', response);
+
+
+
+
 
 
 
@@ -1272,7 +2542,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           console.log('Jobs data:', response.data);
+
+
+
+
 
 
 
@@ -1280,7 +2558,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         } else {
+
+
+
+
 
 
 
@@ -1288,11 +2574,27 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           toast.error('Failed to load jobs: ' + (response?.message || 'Unknown error'));
 
 
 
+
+
+
+
         }
+
+
+
+
+
+
+
+
 
 
 
@@ -1304,7 +2606,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         const projectsData = projectsResponse.status === 'fulfilled' ? projectsResponse.value : null;
+
+
+
+
 
 
 
@@ -1312,7 +2622,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           setActiveProjects(projectsData.data);
+
+
+
+
 
 
 
@@ -1320,7 +2638,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           setActiveProjects([]);
+
+
+
+
 
 
 
@@ -1328,7 +2654,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       } catch (error) {
+
+
+
+
 
 
 
@@ -1336,7 +2670,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         toast.error('Failed to load your data');
+
+
+
+
 
 
 
@@ -1344,11 +2686,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         setLoading(false);
 
 
 
+
+
+
+
       }
+
+
+
+
 
 
 
@@ -1360,7 +2714,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
     if (user) {
+
+
+
+
 
 
 
@@ -1368,7 +2734,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       console.log('User ID:', user.id);
+
+
+
+
 
 
 
@@ -1376,7 +2750,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       fetchJobs();
+
+
+
+
 
 
 
@@ -1384,7 +2766,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       fetchRecentPayments();
+
+
+
+
 
 
 
@@ -1392,11 +2782,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       console.log('No user found, not fetching jobs');
 
 
 
+
+
+
+
     }
+
+
+
+
 
 
 
@@ -1408,7 +2810,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
   // Calculate stats from actual jobs and projects
+
+
+
+
 
 
 
@@ -1416,7 +2830,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     {
+
+
+
+
 
 
 
@@ -1424,7 +2846,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       label: 'Total Job Postings',
+
+
+
+
 
 
 
@@ -1432,7 +2862,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       change: `${jobs.filter(j => j.status === 'open' || j.status === 'bidding').length} active`,
+
+
+
+
 
 
 
@@ -1440,11 +2878,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     },
 
 
 
+
+
+
+
     {
+
+
+
+
 
 
 
@@ -1452,7 +2902,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       label: 'Active Projects',
+
+
+
+
 
 
 
@@ -1460,7 +2918,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       change: 'Currently in progress',
+
+
+
+
 
 
 
@@ -1468,11 +2934,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     },
 
 
 
+
+
+
+
     {
+
+
+
+
 
 
 
@@ -1480,7 +2958,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       label: 'Closed Jobs',
+
+
+
+
 
 
 
@@ -1488,7 +2974,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       change: 'Completed or cancelled',
+
+
+
+
 
 
 
@@ -1496,7 +2990,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -1504,7 +3006,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       icon: <TrendingUp className="w-6 h-6" />,
+
+
+
+
 
 
 
@@ -1512,7 +3022,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       value: jobs.filter(j => {
+
+
+
+
 
 
 
@@ -1520,7 +3038,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         weekAgo.setDate(weekAgo.getDate() - 7);
+
+
+
+
 
 
 
@@ -1528,7 +3054,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       }).length.toString(),
+
+
+
+
 
 
 
@@ -1536,11 +3070,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       color: 'bg-orange-500',
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -1552,7 +3098,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
   // Handle delete job
+
+
+
+
 
 
 
@@ -1560,7 +3118,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     if (!window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+
+
+
+
 
 
 
@@ -1568,7 +3134,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     }
+
+
+
+
+
+
+
+
 
 
 
@@ -1580,7 +3158,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       const response = await jobAPI.deleteJob(jobId);
+
+
+
+
 
 
 
@@ -1588,7 +3174,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         toast.success('Job deleted successfully');
+
+
+
+
 
 
 
@@ -1596,7 +3190,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       }
+
+
+
+
 
 
 
@@ -1604,7 +3206,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       console.error('Error deleting job:', error);
+
+
+
+
 
 
 
@@ -1612,7 +3222,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       toast.error(errorMessage);
+
+
+
+
 
 
 
@@ -1620,7 +3238,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -1632,7 +3262,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const handleAcceptBid = async (bidId) => {
+
+
+
+
 
 
 
@@ -1640,11 +3278,27 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       return;
 
 
 
+
+
+
+
     }
+
+
+
+
+
+
+
+
 
 
 
@@ -1656,7 +3310,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       const response = await bidAPI.acceptBid(bidId);
+
+
+
+
 
 
 
@@ -1664,7 +3326,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         toast.success(response.message || 'Bid accepted successfully! Job allocated to freelancer.');
+
+
+
+
 
 
 
@@ -1672,7 +3342,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         refreshJobs(); // Refresh jobs to update status
+
+
+
+
 
 
 
@@ -1680,7 +3358,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           type: 'success',
+
+
+
+
 
 
 
@@ -1688,7 +3374,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           timestamp: new Date()
+
+
+
+
 
 
 
@@ -1696,7 +3390,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       }
+
+
+
+
 
 
 
@@ -1704,7 +3406,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       console.error('Error accepting bid:', error);
+
+
+
+
 
 
 
@@ -1712,7 +3422,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       toast.error(errorMessage);
+
+
+
+
 
 
 
@@ -1720,7 +3438,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -1732,7 +3462,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const handleRejectBid = async (bidId) => {
+
+
+
+
 
 
 
@@ -1740,11 +3478,27 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       return;
 
 
 
+
+
+
+
     }
+
+
+
+
+
+
+
+
 
 
 
@@ -1756,7 +3510,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       const response = await bidAPI.rejectBid(bidId);
+
+
+
+
 
 
 
@@ -1764,7 +3526,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         toast.success('Bid rejected');
+
+
+
+
 
 
 
@@ -1772,7 +3542,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       }
+
+
+
+
 
 
 
@@ -1780,7 +3558,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       console.error('Error rejecting bid:', error);
+
+
+
+
 
 
 
@@ -1788,7 +3574,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       toast.error(errorMessage);
+
+
+
+
 
 
 
@@ -1796,7 +3590,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -1808,7 +3614,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const getBiddingTimeRemaining = (deadline) => {
+
+
+
+
 
 
 
@@ -1816,7 +3630,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     const deadlineDate = new Date(deadline);
+
+
+
+
 
 
 
@@ -1824,11 +3646,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     const diff = deadlineDate - now;
 
 
 
+
+
+
+
     
+
+
+
+
 
 
 
@@ -1836,7 +3670,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     
+
+
+
+
 
 
 
@@ -1844,11 +3686,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     const days = Math.floor(hours / 24);
 
 
 
+
+
+
+
     
+
+
+
+
 
 
 
@@ -1856,7 +3710,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     if (hours > 0) return `${hours}h left`;
+
+
+
+
 
 
 
@@ -1864,7 +3726,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     const minutes = Math.floor(diff / (1000 * 60));
+
+
+
+
 
 
 
@@ -1872,7 +3742,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -1884,7 +3766,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const recentJobs = jobs.slice(0, 5);
+
+
+
+
+
+
+
+
 
 
 
@@ -1896,7 +3790,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   const getStatusColor = (status) => {
+
+
+
+
 
 
 
@@ -1904,7 +3806,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       case 'open':
+
+
+
+
 
 
 
@@ -1912,7 +3822,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       case 'bidding':
+
+
+
+
 
 
 
@@ -1920,7 +3838,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       case 'closed':
+
+
+
+
 
 
 
@@ -1928,7 +3854,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       case 'cancelled':
+
+
+
+
 
 
 
@@ -1936,7 +3870,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       default:
+
+
+
+
 
 
 
@@ -1944,11 +3886,27 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     }
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -1960,7 +3918,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     switch (status) {
+
+
+
+
 
 
 
@@ -1968,7 +3934,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return <CheckCircle className="w-4 h-4" />;
+
+
+
+
 
 
 
@@ -1976,7 +3950,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return <Clock className="w-4 h-4" />;
+
+
+
+
 
 
 
@@ -1984,7 +3966,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return <CheckCircle className="w-4 h-4" />;
+
+
+
+
 
 
 
@@ -1992,7 +3982,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return <XCircle className="w-4 h-4" />;
+
+
+
+
 
 
 
@@ -2000,7 +3998,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return null;
+
+
+
+
 
 
 
@@ -2008,7 +4014,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -2020,7 +4038,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     switch (status) {
+
+
+
+
 
 
 
@@ -2028,7 +4054,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return 'text-blue-700 bg-blue-100';
+
+
+
+
 
 
 
@@ -2036,7 +4070,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return 'text-indigo-700 bg-indigo-100';
+
+
+
+
 
 
 
@@ -2044,7 +4086,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return 'text-purple-700 bg-purple-100';
+
+
+
+
 
 
 
@@ -2052,7 +4102,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return 'text-orange-700 bg-orange-100';
+
+
+
+
 
 
 
@@ -2060,7 +4118,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return 'text-green-700 bg-green-100';
+
+
+
+
 
 
 
@@ -2068,7 +4134,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return 'text-gray-700 bg-gray-100';
+
+
+
+
 
 
 
@@ -2076,7 +4150,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -2088,7 +4174,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     switch (status) {
+
+
+
+
 
 
 
@@ -2096,7 +4190,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return <Clock className="w-4 h-4" />;
+
+
+
+
 
 
 
@@ -2104,7 +4206,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return <TrendingUp className="w-4 h-4" />;
+
+
+
+
 
 
 
@@ -2112,7 +4222,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return <BarChart3 className="w-4 h-4" />;
+
+
+
+
 
 
 
@@ -2120,7 +4238,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return <Zap className="w-4 h-4" />;
+
+
+
+
 
 
 
@@ -2128,7 +4254,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return <CheckCircle className="w-4 h-4" />;
+
+
+
+
 
 
 
@@ -2136,7 +4270,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         return null;
+
+
+
+
 
 
 
@@ -2144,7 +4286,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -2156,7 +4310,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     if (level === 0) return 'bg-blue-500';
+
+
+
+
 
 
 
@@ -2164,7 +4326,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     if (level === 2) return 'bg-purple-500';
+
+
+
+
 
 
 
@@ -2172,11 +4342,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     if (level === 4) return 'bg-green-500';
 
 
 
+
+
+
+
     return 'bg-gray-500';
+
+
+
+
 
 
 
@@ -2188,7 +4370,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
   return (
+
+
+
+
 
 
 
@@ -2196,7 +4390,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+
+
+
 
 
 
@@ -2204,7 +4406,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         <motion.div
+
+
+
+
 
 
 
@@ -2212,7 +4422,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           animate={{ opacity: 1, y: 0 }}
+
+
+
+
 
 
 
@@ -2220,7 +4438,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           className="mb-8"
+
+
+
+
 
 
 
@@ -2228,7 +4454,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           <div className="flex items-start justify-between">
+
+
+
+
 
 
 
@@ -2236,7 +4470,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               <h1 className="text-4xl font-bold text-gray-900 mb-2">
+
+
+
+
 
 
 
@@ -2244,7 +4486,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </h1>
+
+
+
+
 
 
 
@@ -2252,7 +4502,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               {lastUpdated && (
+
+
+
+
 
 
 
@@ -2260,7 +4518,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   Last updated: {formatTimeAgo(lastUpdated)}
+
+
+
+
 
 
 
@@ -2268,11 +4534,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               )}
 
 
 
+
+
+
+
             </div>
+
+
+
+
 
 
 
@@ -2280,7 +4558,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             {/* Control Panel */}
+
+
+
+
 
 
 
@@ -2288,11 +4574,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               {/* Auto-refresh toggle */}
 
 
 
+
+
+
+
               <button
+
+
+
+
 
 
 
@@ -2300,7 +4598,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 ${
+
+
+
+
 
 
 
@@ -2308,7 +4614,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                     ? 'bg-green-50 border-green-200 text-green-700' 
+
+
+
+
 
 
 
@@ -2316,11 +4630,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 }`}
 
 
 
+
+
+
+
               >
+
+
+
+
 
 
 
@@ -2328,7 +4654,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 <span className="text-sm font-medium">
+
+
+
+
 
 
 
@@ -2336,7 +4670,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 </span>
+
+
+
+
 
 
 
@@ -2344,7 +4686,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               
+
+
+
+
 
 
 
@@ -2352,7 +4702,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               <button
+
+
+
+
 
 
 
@@ -2360,7 +4718,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 disabled={isRefreshing}
+
+
+
+
 
 
 
@@ -2368,7 +4734,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               >
+
+
+
+
 
 
 
@@ -2376,7 +4750,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 <span className="text-sm font-medium">Refresh</span>
+
+
+
+
 
 
 
@@ -2384,7 +4766,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               
+
+
+
+
 
 
 
@@ -2392,7 +4782,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               <div className="relative">
+
+
+
+
 
 
 
@@ -2400,7 +4798,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   <Bell className="w-5 h-5" />
+
+
+
+
 
 
 
@@ -2408,7 +4814,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                     <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+
+
+
+
 
 
 
@@ -2416,7 +4830,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 </button>
+
+
+
+
 
 
 
@@ -2424,7 +4846,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 {/* Notifications dropdown */}
+
+
+
+
 
 
 
@@ -2432,7 +4862,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+
+
+
+
 
 
 
@@ -2440,11 +4878,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                       <h3 className="font-semibold text-gray-900">Notifications</h3>
 
 
 
+
+
+
+
                     </div>
+
+
+
+
 
 
 
@@ -2452,7 +4902,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                       {notifications.map((notification, index) => (
+
+
+
+
 
 
 
@@ -2460,7 +4918,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           <div className="flex items-start justify-between">
+
+
+
+
 
 
 
@@ -2468,7 +4934,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                               <p className="text-sm text-gray-900">{notification.message}</p>
+
+
+
+
 
 
 
@@ -2476,7 +4950,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                                 {formatTimeAgo(notification.timestamp)}
+
+
+
+
 
 
 
@@ -2484,7 +4966,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             </div>
+
+
+
+
 
 
 
@@ -2492,7 +4982,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                               onClick={() => removeNotification(index)}
+
+
+
+
 
 
 
@@ -2500,7 +4998,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             >
+
+
+
+
 
 
 
@@ -2508,7 +5014,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             </button>
+
+
+
+
 
 
 
@@ -2516,7 +5030,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                         </div>
+
+
+
+
 
 
 
@@ -2524,7 +5046,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                     </div>
+
+
+
+
 
 
 
@@ -2532,7 +5062,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 )}
+
+
+
+
 
 
 
@@ -2540,7 +5078,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             </div>
+
+
+
+
 
 
 
@@ -2548,7 +5094,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         </motion.div>
+
+
+
+
+
+
+
+
 
 
 
@@ -2560,7 +5118,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+
+
+
 
 
 
@@ -2568,7 +5134,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             Array.from({ length: 4 }).map((_, index) => (
+
+
+
+
 
 
 
@@ -2576,7 +5150,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             ))
+
+
+
+
 
 
 
@@ -2584,7 +5166,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             stats.map((stat, index) => (
+
+
+
+
 
 
 
@@ -2592,7 +5182,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 key={index}
+
+
+
+
 
 
 
@@ -2600,7 +5198,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 animate={{ opacity: 1, y: 0 }}
+
+
+
+
 
 
 
@@ -2608,7 +5214,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 whileHover={{ y: -5 }}
+
+
+
+
 
 
 
@@ -2616,7 +5230,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               >
+
+
+
+
 
 
 
@@ -2624,7 +5246,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   <div className={`${stat.color} p-3 rounded-lg text-white`}>
+
+
+
+
 
 
 
@@ -2632,7 +5262,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   </div>
+
+
+
+
 
 
 
@@ -2640,7 +5278,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 </div>
+
+
+
+
 
 
 
@@ -2648,7 +5294,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 <p className="text-sm text-gray-600 mb-2">{stat.label}</p>
+
+
+
+
 
 
 
@@ -2656,7 +5310,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   {stat.change}
+
+
+
+
 
 
 
@@ -2664,7 +5326,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </motion.div>
+
+
+
+
 
 
 
@@ -2672,11 +5342,27 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           )}
 
 
 
+
+
+
+
         </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -2688,7 +5374,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         <motion.div
+
+
+
+
 
 
 
@@ -2696,7 +5390,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           animate={{ opacity: 1, y: 0 }}
+
+
+
+
 
 
 
@@ -2704,7 +5406,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           className="bg-gradient-to-r from-primary-600 to-indigo-700 rounded-xl shadow-lg p-6 mb-8 text-white"
+
+
+
+
 
 
 
@@ -2712,7 +5422,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           <div className="flex flex-col md:flex-row items-center justify-between">
+
+
+
+
 
 
 
@@ -2720,7 +5438,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               <h2 className="text-2xl font-bold mb-2">Ready to post a new job?</h2>
+
+
+
+
 
 
 
@@ -2728,7 +5454,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             </div>
+
+
+
+
 
 
 
@@ -2736,7 +5470,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               <Link
+
+
+
+
 
 
 
@@ -2744,11 +5486,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 className="px-6 py-3 bg-white text-primary-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-200 flex items-center gap-2"
 
 
 
+
+
+
+
               >
+
+
+
+
 
 
 
@@ -2756,11 +5510,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 Post New Job
 
 
 
+
+
+
+
               </Link>
+
+
+
+
 
 
 
@@ -2768,7 +5534,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 to="/applicants"
+
+
+
+
 
 
 
@@ -2776,7 +5550,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               >
+
+
+
+
 
 
 
@@ -2784,7 +5566,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </Link>
+
+
+
+
 
 
 
@@ -2792,7 +5582,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           </div>
+
+
+
+
 
 
 
@@ -2804,7 +5602,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+
+
+
 
 
 
@@ -2812,7 +5622,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           <motion.div
+
+
+
+
 
 
 
@@ -2820,7 +5638,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             animate={{ opacity: 1, y: 0 }}
+
+
+
+
 
 
 
@@ -2828,7 +5654,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             className="bg-white rounded-xl shadow-md p-6"
+
+
+
+
 
 
 
@@ -2836,7 +5670,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             <div className="flex items-center justify-between mb-6">
+
+
+
+
 
 
 
@@ -2844,7 +5686,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               <div className="text-sm text-gray-500">
+
+
+
+
 
 
 
@@ -2852,11 +5702,27 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </div>
 
 
 
+
+
+
+
             </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -2868,7 +5734,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             <div className="flex flex-col sm:flex-row gap-3 mb-6">
+
+
+
+
 
 
 
@@ -2876,7 +5750,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+
+
+
+
 
 
 
@@ -2884,7 +5766,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   type="text"
+
+
+
+
 
 
 
@@ -2892,7 +5782,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   value={searchTerm}
+
+
+
+
 
 
 
@@ -2900,7 +5798,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+
+
+
+
 
 
 
@@ -2908,7 +5814,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -2916,7 +5830,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 <Filter className="w-4 h-4 text-gray-500" />
+
+
+
+
 
 
 
@@ -2924,7 +5846,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   value={filterStatus}
+
+
+
+
 
 
 
@@ -2932,7 +5862,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+
+
+
+
 
 
 
@@ -2940,7 +5878,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   <option value="all">All Status</option>
+
+
+
+
 
 
 
@@ -2948,7 +5894,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   <option value="bidding">Bidding</option>
+
+
+
+
 
 
 
@@ -2956,7 +5910,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   <option value="cancelled">Cancelled</option>
+
+
+
+
 
 
 
@@ -2964,7 +5926,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -2972,7 +5942,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 onClick={refreshJobs}
+
+
+
+
 
 
 
@@ -2980,7 +5958,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
+
+
+
+
 
 
 
@@ -2988,7 +5974,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               >
+
+
+
+
 
 
 
@@ -2996,11 +5990,27 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </button>
 
 
 
+
+
+
+
             </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -3012,7 +6022,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               <div className="flex justify-center items-center py-8">
+
+
+
+
 
 
 
@@ -3020,7 +6038,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -3028,7 +6054,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               <div className="text-center py-8 text-gray-500">
+
+
+
+
 
 
 
@@ -3036,7 +6070,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 <p className="font-medium">No jobs found</p>
+
+
+
+
 
 
 
@@ -3044,7 +6086,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   {searchTerm || filterStatus !== 'all' 
+
+
+
+
 
 
 
@@ -3052,7 +6102,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                     : 'Post your first job to get started'
+
+
+
+
 
 
 
@@ -3060,7 +6118,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 </p>
+
+
+
+
 
 
 
@@ -3068,7 +6134,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   <Link 
+
+
+
+
 
 
 
@@ -3076,7 +6150,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                     className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 mt-4"
+
+
+
+
 
 
 
@@ -3084,7 +6166,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                     <Plus className="w-4 h-4" />
+
+
+
+
 
 
 
@@ -3092,7 +6182,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   </Link>
+
+
+
+
 
 
 
@@ -3100,7 +6198,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -3108,7 +6214,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               <div className="space-y-4 max-h-96 overflow-y-auto">
+
+
+
+
 
 
 
@@ -3116,7 +6230,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   const isBiddingOpen = job.biddingDeadline && new Date(job.biddingDeadline) > new Date() && (job.status === 'open' || job.status === 'bidding');
+
+
+
+
 
 
 
@@ -3124,7 +6246,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   const bidCount = bids.filter(bid => bid.job?._id === job._id).length;
+
+
+
+
 
 
 
@@ -3132,7 +6262,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   const acceptedBid = bids.find(bid => bid._id === job.acceptedBid);
+
+
+
+
 
 
 
@@ -3140,7 +6278,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   return (
+
+
+
+
 
 
 
@@ -3148,7 +6294,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                       key={job._id || job.id}
+
+
+
+
 
 
 
@@ -3156,7 +6310,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                       animate={{ opacity: 1, x: 0 }}
+
+
+
+
 
 
 
@@ -3164,7 +6326,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                       className={`border rounded-lg p-4 hover:shadow-md transition-all duration-200 ${
+
+
+
+
 
 
 
@@ -3172,7 +6342,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                         'border-gray-200'
+
+
+
+
 
 
 
@@ -3180,7 +6358,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                     >
+
+
+
+
 
 
 
@@ -3188,7 +6374,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                         <div className="flex-1">
+
+
+
+
 
 
 
@@ -3196,7 +6390,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
+
+
+
+
 
 
 
@@ -3204,7 +6406,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                               <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium flex items-center gap-1">
+
+
+
+
 
 
 
@@ -3212,7 +6422,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                                 Allocated
+
+
+
+
 
 
 
@@ -3220,7 +6438,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             )}
+
+
+
+
 
 
 
@@ -3228,7 +6454,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                               <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium flex items-center gap-1">
+
+
+
+
 
 
 
@@ -3236,7 +6470,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                                 {bidCount} bid{bidCount !== 1 ? 's' : ''}
+
+
+
+
 
 
 
@@ -3244,7 +6486,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             )}
+
+
+
+
 
 
 
@@ -3252,7 +6502,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           <p className="text-sm text-gray-600">{job.company}</p>
+
+
+
+
 
 
 
@@ -3260,7 +6518,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             <p className="text-xs text-green-600 mt-1">
+
+
+
+
 
 
 
@@ -3268,7 +6534,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             </p>
+
+
+
+
 
 
 
@@ -3276,7 +6550,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                         </div>
+
+
+
+
 
 
 
@@ -3284,7 +6566,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           {getStatusIcon(job.status)}
+
+
+
+
 
 
 
@@ -3292,11 +6582,27 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                         </span>
 
 
 
+
+
+
+
                       </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -3308,7 +6614,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                       {job.biddingDeadline && (
+
+
+
+
 
 
 
@@ -3316,7 +6630,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           isBiddingOpen ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'
+
+
+
+
 
 
 
@@ -3324,7 +6646,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           <div className="flex items-center justify-between text-xs">
+
+
+
+
 
 
 
@@ -3332,7 +6662,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                               <Calendar className={`w-3 h-3 mr-1 ${isBiddingOpen ? 'text-blue-600' : 'text-gray-500'}`} />
+
+
+
+
 
 
 
@@ -3340,11 +6678,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                                 {isBiddingOpen ? 'Bidding Open' : 'Bidding Closed'}
 
 
 
+
+
+
+
                               </span>
+
+
+
+
 
 
 
@@ -3352,7 +6702,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             {timeRemaining && (
+
+
+
+
 
 
 
@@ -3360,7 +6718,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                                 {timeRemaining}
+
+
+
+
 
 
 
@@ -3368,7 +6734,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             )}
+
+
+
+
 
 
 
@@ -3376,7 +6750,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                         </div>
+
+
+
+
 
 
 
@@ -3384,7 +6766,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                       
+
+
+
+
 
 
 
@@ -3392,7 +6782,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                         <div>
+
+
+
+
 
 
 
@@ -3400,11 +6798,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           <div className="text-sm font-semibold text-gray-900">{formatSalaryToINR(job.salary) || 'Not specified'}</div>
 
 
 
+
+
+
+
                         </div>
+
+
+
+
 
 
 
@@ -3412,7 +6822,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           <div className="text-xs text-gray-500">Posted</div>
+
+
+
+
 
 
 
@@ -3420,7 +6838,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             {formatTimeAgo(job.createdAt)}
+
+
+
+
 
 
 
@@ -3428,7 +6854,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                         </div>
+
+
+
+
 
 
 
@@ -3436,7 +6870,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           <Link
+
+
+
+
 
 
 
@@ -3444,7 +6886,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200"
+
+
+
+
 
 
 
@@ -3452,7 +6902,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           >
+
+
+
+
 
 
 
@@ -3460,7 +6918,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           </Link>
+
+
+
+
 
 
 
@@ -3468,11 +6934,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             <>
 
 
 
+
+
+
+
                               <button
+
+
+
+
 
 
 
@@ -3480,7 +6958,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+
+
+
+
 
 
 
@@ -3488,7 +6974,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                               >
+
+
+
+
 
 
 
@@ -3496,7 +6990,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                               </button>
+
+
+
+
 
 
 
@@ -3504,7 +7006,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                                 onClick={() => handleDeleteJob(job._id || job.id)}
+
+
+
+
 
 
 
@@ -3512,7 +7022,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                                 title="Delete"
+
+
+
+
 
 
 
@@ -3520,7 +7038,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                                 <Trash2 className="w-5 h-5" />
+
+
+
+
 
 
 
@@ -3528,11 +7054,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             </>
 
 
 
+
+
+
+
                           )}
+
+
+
+
 
 
 
@@ -3540,7 +7078,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             <button
+
+
+
+
 
 
 
@@ -3548,7 +7094,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                               title="View Allocated Freelancer"
+
+
+
+
 
 
 
@@ -3556,7 +7110,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                               <UserCheck className="w-5 h-5" />
+
+
+
+
 
 
 
@@ -3564,7 +7126,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           )}
+
+
+
+
 
 
 
@@ -3572,7 +7142,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                       </div>
+
+
+
+
 
 
 
@@ -3580,7 +7158,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   );
+
+
+
+
 
 
 
@@ -3588,7 +7174,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 
+
+
+
+
 
 
 
@@ -3596,7 +7190,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   <div className="text-center pt-4 border-t border-gray-200">
+
+
+
+
 
 
 
@@ -3604,7 +7206,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                       View all {filteredJobs.length} jobs →
+
+
+
+
 
 
 
@@ -3612,7 +7222,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   </div>
+
+
+
+
 
 
 
@@ -3620,7 +7238,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -3628,7 +7254,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           </motion.div>
+
+
+
+
+
+
+
+
 
 
 
@@ -3640,7 +7278,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           <motion.div
+
+
+
+
 
 
 
@@ -3648,7 +7294,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             animate={{ opacity: 1, y: 0 }}
+
+
+
+
 
 
 
@@ -3656,7 +7310,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             className="bg-white rounded-xl shadow-md p-6"
+
+
+
+
 
 
 
@@ -3664,7 +7326,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
             <div className="flex items-center justify-between mb-6">
+
+
+
+
 
 
 
@@ -3672,7 +7342,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               <div className="flex items-center gap-4">
+
+
+
+
 
 
 
@@ -3680,7 +7358,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   {activeProjects.length} project{activeProjects.length !== 1 ? 's' : ''}
+
+
+
+
 
 
 
@@ -3688,11 +7374,27 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </div>
 
 
 
+
+
+
+
             </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -3704,7 +7406,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               <div className="text-center py-8 text-gray-500">
+
+
+
+
 
 
 
@@ -3712,7 +7422,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                 <p className="font-medium">No active projects</p>
+
+
+
+
 
 
 
@@ -3720,7 +7438,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -3728,7 +7454,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               <div className="space-y-4 max-h-96 overflow-y-auto">
+
+
+
+
 
 
 
@@ -3736,7 +7470,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   <motion.div
+
+
+
+
 
 
 
@@ -3744,7 +7486,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                     initial={{ opacity: 0, x: -20 }}
+
+
+
+
 
 
 
@@ -3752,7 +7502,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                     transition={{ duration: 0.3, delay: index * 0.1 }}
+
+
+
+
 
 
 
@@ -3760,7 +7518,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                   >
+
+
+
+
 
 
 
@@ -3768,7 +7534,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                       <div className="flex-1 mb-4 md:mb-0">
+
+
+
+
 
 
 
@@ -3776,7 +7550,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           <div>
+
+
+
+
 
 
 
@@ -3784,7 +7566,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             <p className="text-sm text-gray-600">Freelancer: {project.allocatedTo?.name || 'Unknown'}</p>
+
+
+
+
 
 
 
@@ -3792,7 +7582,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           </div>
+
+
+
+
 
 
 
@@ -3800,7 +7598,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             {getProjectStatusIcon(project.projectStatus)}
+
+
+
+
 
 
 
@@ -3808,11 +7614,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           </span>
 
 
 
+
+
+
+
                         </div>
+
+
+
+
 
 
 
@@ -3820,7 +7638,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                         {/* Progress Bar */}
+
+
+
+
 
 
 
@@ -3828,7 +7654,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+
+
+
+
 
 
 
@@ -3836,11 +7670,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             <span>{project.completionPercentage}%</span>
 
 
 
+
+
+
+
                           </div>
+
+
+
+
 
 
 
@@ -3848,7 +7694,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             <div
+
+
+
+
 
 
 
@@ -3856,7 +7710,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                               style={{ width: `${project.completionPercentage}%` }}
+
+
+
+
 
 
 
@@ -3864,7 +7726,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           </div>
+
+
+
+
 
 
 
@@ -3872,7 +7742,19 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                       </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -3884,7 +7766,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                         <div className="text-right">
+
+
+
+
 
 
 
@@ -3892,7 +7782,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           <div className="text-lg font-bold text-gray-900">
+
+
+
+
 
 
 
@@ -3900,7 +7798,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                               ? project.budget.toLocaleString() 
+
+
+
+
 
 
 
@@ -3908,7 +7814,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                                 ? project.acceptedBid.bidAmount.toLocaleString()
+
+
+
+
 
 
 
@@ -3916,7 +7830,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             }
+
+
+
+
 
 
 
@@ -3924,7 +7846,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                         </div>
+
+
+
+
 
 
 
@@ -3932,7 +7862,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           <Link
+
+
+
+
 
 
 
@@ -3940,7 +7878,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors duration-200"
+
+
+
+
 
 
 
@@ -3948,7 +7894,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                           >
+
+
+
+
 
 
 
@@ -3956,11 +7910,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             Pay Now
 
 
 
+
+
+
+
                           </Link>
+
+
+
+
 
 
 
@@ -3968,7 +7934,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             to={`/projects/${project._id}`}
+
+
+
+
 
 
 
@@ -3976,7 +7950,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             title="View Details"
+
+
+
+
 
 
 
@@ -3984,7 +7966,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                             <Eye className="w-5 h-5" />
+
+
+
+
 
 
 
@@ -3992,7 +7982,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                         </div>
+
+
+
+
 
 
 
@@ -4000,11 +7998,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
                     </div>
 
 
 
+
+
+
+
                   </motion.div>
+
+
+
+
 
 
 
@@ -4012,7 +8022,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -4020,7 +8038,15 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
           </motion.div>
+
+
+
+
 
 
 
@@ -4028,355 +8054,711 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
         {/* Recent Payments Section */}
+
+
 
         {recentPayments.length > 0 && (
 
+
+
           <motion.div
+
+
 
             initial={{ opacity: 0, y: 20 }}
 
+
+
             animate={{ opacity: 1, y: 0 }}
+
+
 
             transition={{ duration: 0.5, delay: 0.8 }}
 
+
+
             className="mt-8"
+
+
 
           >
 
+
+
             <div className="bg-white rounded-xl shadow-md p-6">
+
+
 
               <div className="flex items-center justify-between mb-6">
 
+
+
                 <h2 className="text-2xl font-bold text-gray-900">Recent Payments</h2>
+
+
 
                 <div className="flex items-center gap-4">
 
+
+
                   <div className="text-sm text-gray-500">
+
+
 
                     {recentPayments.length} payment{recentPayments.length !== 1 ? 's' : ''}
 
+
+
                   </div>
+
+
 
                   <div className="text-sm text-green-600 font-medium">
 
+
+
                     Total: ₹{recentPayments.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString()}
+
+
 
                   </div>
 
+
+
                   <button
 
+
+
                     onClick={() => {
+
+
 
                       console.log('🔄 Manual refresh of recent payments...');
 
+
+
                       fetchRecentPayments();
 
+
+
                     }}
+
+
 
                     className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
 
+
+
                   >
+
+
 
                     🔄 Refresh
 
+
+
                   </button>
+
+
 
                   <button
 
+
+
                     onClick={() => {
+
+
 
                       console.log('🧪 Testing payment acceptance event...');
 
+
+
                       
+
+
 
                       // First, add a test payment to localStorage
 
+
+
                       const testPayment = {
+
+
 
                         transactionId: 'test_txn_123',
 
+
+
                         amount: 60,
+
+
 
                         upiId: '9886442946@ptyes',
 
+
+
                         projectName: 'Test Project',
+
+
 
                         projectId: 'test_project_id',
 
+
+
                         recruiterId: user?.id,
+
+
 
                         recruiterName: user?.name,
 
+
+
                         freelancerId: '69c286c73ab830ea92ea63dc',
+
+
 
                         submittedAt: new Date(),
 
+
+
                         status: 'ACCEPTED'
+
+
 
                       };
 
+
+
                       
+
+
 
                       const existingVerifications = JSON.parse(localStorage.getItem('paymentVerifications') || '[]');
 
+
+
                       const updatedVerifications = [...existingVerifications.filter(v => v.transactionId !== 'test_txn_123'), testPayment];
+
+
 
                       localStorage.setItem('paymentVerifications', JSON.stringify(updatedVerifications));
 
+
+
                       
+
+
 
                       console.log('✅ Test payment added to localStorage:', testPayment);
 
+
+
                       
+
+
 
                       // Now simulate the payment acceptance event
 
+
+
                       const testEvent = {
+
+
 
                         transactionId: 'test_txn_123',
 
+
+
                         amount: 60,
+
+
 
                         recruiterId: user?.id
 
+
+
                       };
 
+
+
                       
+
+
 
                       console.log('📡 Dispatching test paymentAccepted event:', testEvent);
 
+
+
                       window.dispatchEvent(new CustomEvent('paymentAccepted', { 
+
+
 
                         detail: testEvent
 
+
+
                       }));
 
+
+
                     }}
+
+
 
                     className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
 
+
+
                   >
+
+
 
                     🧪 Test Event
 
+
+
                   </button>
+
+
 
                   <button
 
+
+
                     onClick={() => {
+
+
 
                       console.log('🔍 Debugging localStorage payments...');
 
+
+
                       const allVerifications = JSON.parse(localStorage.getItem('paymentVerifications') || '[]');
+
+
 
                       console.log('📦 All payment verifications:', allVerifications);
 
+
+
                       
+
+
 
                       const recruiterPayments = allVerifications.filter(v => v.recruiterId === user?.id);
 
+
+
                       console.log('👤 Recruiter payments:', recruiterPayments);
 
+
+
                       
+
+
 
                       const acceptedPayments = recruiterPayments.filter(v => v.status === 'ACCEPTED');
 
+
+
                       console.log('✅ Accepted payments:', acceptedPayments);
 
+
+
                       
+
+
 
                       const pendingPayments = recruiterPayments.filter(v => v.status === 'PENDING');
 
+
+
                       console.log('⏳ Pending payments:', pendingPayments);
 
+
+
                       
+
+
 
                       // Show details of each accepted payment
 
+
+
                       acceptedPayments.forEach((payment, index) => {
+
+
 
                         console.log(`💰 Payment ${index + 1}:`, {
 
+
+
                           transactionId: payment.transactionId,
+
+
 
                           amount: payment.amount,
 
+
+
                           projectName: payment.projectName,
+
+
 
                           status: payment.status,
 
+
+
                           recruiterId: payment.recruiterId,
+
+
 
                           submittedAt: payment.submittedAt
 
+
+
                         });
+
+
 
                       });
 
+
+
                       
+
+
 
                       // Also check what fetchRecentPayments is doing
 
+
+
                       console.log('🔄 Calling fetchRecentPayments to see what it finds...');
+
+
 
                       fetchRecentPayments();
 
+
+
                     }}
+
+
 
                     className="px-3 py-1 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors duration-200"
 
+
+
                   >
+
+
 
                     🔍 Debug
 
+
+
                   </button>
+
+
 
                 </div>
 
+
+
               </div>
+
+
+
+
 
 
 
               <div className="space-y-4">
 
+
+
                 {console.log('🎨 Rendering recentPayments:', recentPayments)}
+
+
 
                 {console.log('🎨 recentPayments.length:', recentPayments.length)}
 
+
+
                 {recentPayments.slice(0, 5).map((payment, index) => {
+
+
 
                   console.log(`🎨 Rendering payment ${index}:`, payment);
 
+
+
                   return (
+
+
 
                   <motion.div
 
+
+
                     key={payment._id}
+
+
 
                     initial={{ opacity: 0, x: -20 }}
 
+
+
                     animate={{ opacity: 1, x: 0 }}
+
+
 
                     transition={{ duration: 0.3, delay: index * 0.1 }}
 
+
+
                     className="border border-gray-200 rounded-lg p-4 hover:border-green-300 hover:shadow-md transition-all duration-200 mb-4"
+
+
 
                     style={{ minHeight: '120px' }}
 
+
+
                   >
+
+
 
                     <div className="flex items-center justify-between">
 
+
+
                       <div className="flex-1">
+
+
 
                         <div className="flex items-center gap-3 mb-2">
 
+
+
                           <h4 className="font-semibold text-gray-900">{payment.projectTitle || payment.project?.title || 'Project'}</h4>
+
+
 
                           <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
 
+
+
                             payment.gateway === 'UPI_DIRECT' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+
+
 
                           }`}>
 
+
+
                             {payment.gateway === 'UPI_DIRECT' ? '📱 UPI' : '💳 Razorpay'}
 
+
+
                           </span>
+
+
 
                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 flex items-center gap-1">
 
+
+
                             <CheckCircle className="w-3 h-3" />
+
+
 
                             PAID
 
+
+
                           </span>
+
+
 
                         </div>
 
+
+
                         
+
+
 
                         <div className="text-sm text-gray-600 mb-2">
 
+
+
                           <span className="font-medium">To:</span> {payment.freelancer?.name || 'Freelancer'}
 
+
+
                         </div>
+
+
 
                         
 
+
+
                         <div className="flex items-center gap-4 text-sm text-gray-500">
 
+
+
                           <div className="flex items-center gap-1">
+
+
 
                             <Calendar className="w-3 h-3" />
 
+
+
                             {payment.paidAt ? new Date(payment.paidAt).toLocaleDateString() : 'Date unavailable'}
 
+
+
                           </div>
+
+
 
                           <div className="flex items-center gap-1">
 
+
+
                             <Briefcase className="w-3 h-3" />
+
+
 
                             {payment.milestone?.status || 'Milestone'}
 
+
+
                           </div>
+
+
 
                         </div>
 
+
+
                       </div>
+
+
+
+
 
 
 
                       <div className="text-right">
 
+
+
                         <div className="text-lg font-bold text-green-600 flex items-center justify-end gap-1">
+
+
 
                           <DollarSign className="w-4 h-4" />
 
+
+
                           {Number(payment.amount || 0).toLocaleString()}
 
+
+
                         </div>
+
+
 
                         <div className="text-xs text-gray-500 mt-1">
 
+
+
                           {payment.transactionId || payment.gatewayPaymentId || 'N/A'}
+
+
 
                         </div>
 
+
+
                       </div>
+
+
 
                     </div>
 
+
+
                   </motion.div>
+
+
 
                   );
 
+
+
                 })}
+
+
 
                 
 
+
+
                 {recentPayments.length > 5 && (
+
+
 
                   <div className="text-center pt-4 border-t border-gray-200">
 
+
+
                     <p className="text-sm text-gray-600">
+
+
 
                       View all payments in individual project sections
 
+
+
                     </p>
+
+
 
                   </div>
 
+
+
                 )}
+
+
 
               </div>
 
+
+
             </div>
+
+
 
           </motion.div>
 
+
+
         )}
+
+
+
+
 
 
 
@@ -4384,11 +8766,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
     </div>
 
 
 
+
+
+
+
   );
+
+
+
+
 
 
 
@@ -4400,7 +8794,23 @@ const RecruiterDashboard = () => {
 
 
 
+
+
+
+
+
+
+
+
 export default RecruiterDashboard;
+
+
+
+
+
+
+
+
 
 
 

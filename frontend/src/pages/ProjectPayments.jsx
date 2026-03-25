@@ -360,44 +360,42 @@ const ProjectPayments = () => {
 
     setRecordingPayment(true);
     try {
-      // Create payment verification for freelancer to accept
-      const verificationData = {
-        projectId: id,
-        recruiterId: user?.id,
-        freelancerId: getFreelancerId(),
-        amount: amountDue,
-        transactionId: transactionId.trim(),
-        upiId: freelancerProfile.personalInfo.upiId,
-        projectName: project.title,
-        recruiterName: user.name,
-        submittedAt: new Date(),
-        status: 'PENDING'
-      };
+      // Call the correct backend API for recruiter to submit transaction details
+      const response = await paymentAPI.submitTransaction(
+        id, // projectId
+        amountDue,
+        payableInfo.currentLevel || 1,
+        transactionId.trim(),
+        freelancerProfile.personalInfo.upiId
+      );
 
-      // Save to localStorage for freelancer to verify
-      const storedVerifications = JSON.parse(localStorage.getItem('paymentVerifications') || '[]');
-      storedVerifications.push(verificationData);
-      localStorage.setItem('paymentVerifications', JSON.stringify(storedVerifications));
+      console.log('✅ Backend transaction submission response:', response);
 
-      console.log('💾 Payment verification created:', verificationData);
-      
-      toast.success(`✅ Payment details submitted! Transaction ID: ${transactionId}. Waiting for freelancer verification.`);
-      
-      // Update UI to show submitted status
-      setTransactionSubmitted(true);
-      setTransactionDetails(verificationData);
-      
-      // Clear transaction ID after successful submission
-      setTransactionId('');
-      setShowTransactionInput(false);
-      
-      // Reload project data to update payment status
-      await loadProjectData();
-      
-      console.log('✅ Payment verification submitted successfully');
+      if (response.success) {
+        toast.success(`✅ Transaction details submitted! Transaction ID: ${transactionId}. Waiting for freelancer verification.`);
+        
+        // Update UI to show submitted status
+        setTransactionSubmitted(true);
+        setTransactionDetails({
+          ...response.data.payment,
+          projectName: project.title,
+          recruiterName: user.name
+        });
+        
+        // Clear transaction ID after successful submission
+        setTransactionId('');
+        setShowTransactionInput(false);
+        
+        // Reload project data to update payment status
+        await loadProjectData();
+        
+        console.log('✅ Transaction details submitted successfully to backend');
+      } else {
+        toast.error(response.message || 'Failed to submit transaction details');
+      }
     } catch (error) {
-      console.error('Error submitting payment verification:', error);
-      toast.error('Failed to submit payment details');
+      console.error('Error submitting transaction details to backend:', error);
+      toast.error(error.response?.data?.error || 'Failed to submit transaction details');
     } finally {
       setRecordingPayment(false);
     }

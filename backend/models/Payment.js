@@ -53,11 +53,37 @@ const paymentSchema = new mongoose.Schema(
     },
     transactionStatus: {
       type: String,
-      enum: ['CREATED', 'PAID', 'FAILED'],
+      enum: ['CREATED', 'PAID', 'FAILED', 'REJECTED'],
       default: 'CREATED'
     },
     paidAt: {
       type: Date,
+      default: null
+    },
+    verified: {
+      type: Boolean,
+      default: false
+    },
+    verifiedAt: {
+      type: Date,
+      default: null
+    },
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    rejectionReason: {
+      type: String,
+      default: null
+    },
+    rejectedAt: {
+      type: Date,
+      default: null
+    },
+    rejectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
       default: null
     }
   },
