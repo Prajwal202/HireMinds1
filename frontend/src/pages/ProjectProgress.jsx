@@ -8,6 +8,7 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Lock,
   Save,
   Briefcase,
   User
@@ -65,9 +66,41 @@ const ProjectProgress = () => {
   };
 
   const handleProgressUpdate = async () => {
-    if (selectedLevel <= project.progressLevel) {
-      toast.error('Cannot move backwards in progress');
-      return;
+    // Ensure current level is at least 1 (projects should start at level 1)
+    const currentLevel = project.progressLevel || project.currentLevel || 0;
+    
+    // For new projects (level 0), allow progression to level 1
+    // For existing projects, use the current level
+    const effectiveCurrentLevel = currentLevel === 0 ? 0 : currentLevel;
+    
+    console.log('🔍 Project Progress Update:', {
+      selectedLevel,
+      currentLevel,
+      effectiveCurrentLevel,
+      projectProgressLevel: project.progressLevel,
+      projectCurrentLevel: project.currentLevel
+    });
+    
+    // Allow progression to level 1 for new projects (level 0)
+    if (effectiveCurrentLevel === 0 && selectedLevel === 1) {
+      console.log(`✅ Valid progression: Starting work (Level 0 → Level 1)`);
+    } else {
+      // For other cases, prevent going backwards
+      if (selectedLevel <= effectiveCurrentLevel) {
+        toast.error('Cannot move backwards in progress');
+        return;
+      }
+      
+      // Prevent jumping more than one level ahead
+      if (selectedLevel > effectiveCurrentLevel + 1) {
+        toast.error(`Cannot jump from Level ${effectiveCurrentLevel} to Level ${selectedLevel}. You must progress through each level sequentially (Level ${effectiveCurrentLevel + 1} next).`);
+        return;
+      }
+      
+      // Additional validation: ensure current level is completed before moving to next
+      if (selectedLevel === effectiveCurrentLevel + 1) {
+        console.log(`✅ Valid progression: Level ${effectiveCurrentLevel} → Level ${selectedLevel}`);
+      }
     }
 
     try {
@@ -81,6 +114,22 @@ const ProjectProgress = () => {
           completionPercentage: response.completionPercentage,
           projectStatus: response.projectStatus
         }));
+        
+        // Dispatch event to notify recruiter dashboard of milestone update
+        window.dispatchEvent(new CustomEvent('milestoneUpdated', {
+          detail: {
+            projectId: id,
+            currentLevel: response.progressLevel,
+            completionPercentage: response.completionPercentage,
+            projectStatus: response.projectStatus,
+            timestamp: new Date().toISOString()
+          }
+        }));
+        
+        console.log('🔄 Dispatched milestoneUpdated event:', {
+          projectId: id,
+          currentLevel: response.progressLevel
+        });
         
         // Check if project was just completed
         if (response.progressLevel === 4) {
@@ -301,9 +350,12 @@ const ProjectProgress = () => {
           <div className="space-y-3">
             {Object.entries(progressLevels).map(([level, data]) => {
               const levelNum = parseInt(level);
-              const isCurrent = levelNum === project.progressLevel;
+              const isCurrent = levelNum === (project.progressLevel || project.currentLevel || 0);
               const isSelected = levelNum === selectedLevel;
-              const isDisabled = levelNum <= project.progressLevel;
+              // Allow Level 1 to be clickable when project is at Level 0 (not started)
+              const currentLevelForUI = project.progressLevel || project.currentLevel || 0;
+              const isDisabled = (currentLevelForUI === 0 && levelNum === 1) ? false :
+                                (levelNum <= currentLevelForUI || levelNum > currentLevelForUI + 1);
               const isCompleted = levelNum === 4;
 
               return (
@@ -331,17 +383,21 @@ const ProjectProgress = () => {
                     <div className="flex items-center gap-2">
                       {isCurrent && (
                         <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
+                          <CheckCircle className="w-4 h-4" />
                           Current
                         </span>
                       )}
-                      {isCompleted && (
-                        <CheckCircle className="w-6 h-6 text-green-500" />
+                      {isDisabled && levelNum < project.progressLevel && (
+                        <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-medium rounded-full flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4" />
+                          Completed
+                        </span>
                       )}
-                      {!isDisabled && isSelected && (
-                        <div className="w-5 h-5 rounded-full bg-primary-600 flex items-center justify-center">
-                          <div className="w-2 h-2 bg-white rounded-full"></div>
-                        </div>
+                      {isDisabled && levelNum > project.progressLevel + 1 && (
+                        <span className="px-3 py-1 bg-gray-100 text-gray-500 text-sm font-medium rounded-full flex items-center gap-1">
+                          <Lock className="w-4 h-4" />
+                          Locked
+                        </span>
                       )}
                     </div>
                   </div>

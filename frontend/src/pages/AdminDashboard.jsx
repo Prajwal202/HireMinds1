@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { adminAPI } from '../api';
-import { Users, Briefcase, TrendingUp, UserPlus, FileText, Trash2, Edit, Shield, DollarSign, CreditCard } from 'lucide-react';
+import { Users, Briefcase, TrendingUp, UserPlus, FileText, Trash2, Edit, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const AdminDashboard = () => {
@@ -9,6 +9,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [jobs, setJobs] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
@@ -19,6 +20,8 @@ const AdminDashboard = () => {
       fetchUsers();
     } else if (activeTab === 'jobs') {
       fetchJobs();
+    } else if (activeTab === 'payments') {
+      fetchPayments();
     }
   }, [activeTab]);
 
@@ -48,6 +51,54 @@ const AdminDashboard = () => {
       setJobs(response.data);
     } catch (error) {
       toast.error('Failed to fetch jobs');
+    }
+  };
+
+  const fetchPayments = async () => {
+    try {
+      // Get payments from localStorage (paymentVerifications)
+      const storedVerifications = JSON.parse(localStorage.getItem('paymentVerifications') || '[]');
+      
+      // Get all jobs to map project IDs to job titles
+      const jobsResponse = await adminAPI.getAllJobs();
+      const jobsMap = {};
+      jobsResponse.data.forEach(job => {
+        jobsMap[job._id] = job.title;
+      });
+      
+      // Get all users to map user IDs to names
+      const usersResponse = await adminAPI.getAllUsers();
+      const usersMap = {};
+      usersResponse.data.forEach(user => {
+        usersMap[user._id] = user.name;
+      });
+      
+      // Group payments by job
+      const paymentsByJob = {};
+      storedVerifications.forEach(payment => {
+        const jobId = payment.projectId;
+        if (!paymentsByJob[jobId]) {
+          paymentsByJob[jobId] = {
+            jobTitle: jobsMap[jobId] || 'Unknown Job',
+            projectId: jobId,
+            payments: []
+          };
+        }
+        
+        paymentsByJob[jobId].payments.push({
+          id: payment.id,
+          recruiterName: usersMap[payment.recruiterId] || payment.recruiterName || 'Unknown Recruiter',
+          freelancerName: usersMap[payment.freelancerId] || payment.freelancerName || 'Unknown Freelancer',
+          amount: payment.amount,
+          status: payment.status,
+          submittedAt: payment.submittedAt,
+          transactionId: payment.transactionId
+        });
+      });
+      
+      setPayments(Object.values(paymentsByJob));
+    } catch (error) {
+      toast.error('Failed to fetch payments');
     }
   };
 
@@ -356,72 +407,90 @@ const AdminDashboard = () => {
 
         {/* Payments Tab */}
         {activeTab === 'payments' && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div>
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Payment Management</h2>
-              <p className="text-sm text-gray-600 mt-1">Manage all platform payments and freelancer payouts</p>
+              <h2 className="text-xl font-semibold text-gray-900">All Payments</h2>
+              <p className="text-sm text-gray-600 mt-1">Payments grouped by job</p>
             </div>
+            
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-blue-900 mb-2">Quick Actions</h3>
-                  <div className="space-y-2">
-                    <Link
-                      to="/admin/payments"
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                    >
-                      <DollarSign className="w-4 h-4" />
-                      Manage All Payments
-                    </Link>
-                    <Link
-                      to="/admin/payments"
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
-                    >
-                      <Users className="w-4 h-4" />
-                      Verify Payouts
-                    </Link>
-                  </div>
+              {payments.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-gray-500">No payments found</div>
                 </div>
-                
-                <div className="bg-green-50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-green-900 mb-2">Payment Stats</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Total Volume:</span>
-                      <span className="font-semibold">View Details</span>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {payments.map((job) => (
+                    <div key={job.projectId} className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                      {/* Job Header */}
+                      <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3">
+                        <h3 className="text-lg font-semibold text-white">{job.jobTitle}</h3>
+                        <p className="text-blue-100 text-xs">Job ID: {job.projectId}</p>
+                      </div>
+                      
+                      {/* Payments List */}
+                      <div className="p-4">
+                        <div className="space-y-3">
+                          {(job.payments || []).map((payment) => (
+                            <div key={payment.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                              {/* Payment Header */}
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="flex-1">
+                                  <div className="text-sm font-semibold text-gray-900">
+                                    ₹{payment.amount.toLocaleString()}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {new Date(payment.submittedAt).toLocaleDateString()}
+                                  </div>
+                                </div>
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                  payment.status === 'ACCEPTED' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {payment.status}
+                                </span>
+                              </div>
+                              
+                              {/* Payment Details */}
+                              <div className="space-y-1 text-xs">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Recruiter:</span>
+                                  <span className="font-medium text-gray-900">{payment.recruiterName}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Freelancer:</span>
+                                  <span className="font-medium text-gray-900">{payment.freelancerName}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Transaction ID:</span>
+                                  <span className="font-mono text-gray-700">{payment.transactionId}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* Job Summary */}
+                        <div className="mt-4 pt-3 border-t border-gray-200">
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="text-center">
+                              <div className="text-gray-600">Total Payments</div>
+                              <div className="font-semibold text-gray-900">{(job.payments || []).length}</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-gray-600">Total Amount</div>
+                              <div className="font-semibold text-green-600">
+                                ₹{(job.payments || []).reduce((sum, p) => sum + p.amount, 0).toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Released:</span>
-                      <span className="font-semibold text-green-600">View Details</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Pending:</span>
-                      <span className="font-semibold text-orange-600">View Details</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-                
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-purple-900 mb-2">Recent Activity</h3>
-                  <p className="text-sm text-gray-600">View recent payment transactions, releases, and verification activities in the detailed payment management panel.</p>
-                  <Link
-                    to="/admin/payments"
-                    className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700 text-sm font-medium mt-2"
-                  >
-                    View All Activity →
-                  </Link>
-                </div>
-              </div>
-              
-              <div className="text-center">
-                <Link
-                  to="/admin/payments"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium"
-                >
-                  <CreditCard className="w-5 h-5" />
-                  Open Payment Management
-                </Link>
-              </div>
+              )}
             </div>
           </div>
         )}

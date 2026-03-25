@@ -83,9 +83,35 @@ const ProjectDetails = () => {
     console.log('Project object:', project);
     console.log('User object:', user);
     
-    if (selectedLevel <= project.progressLevel) {
-      toast.error('Cannot move backwards in progress');
-      return;
+    // Ensure current level is at least 1 (projects should start at level 1)
+    const currentLevel = project.progressLevel || project.currentLevel || 0;
+    
+    // For new projects (level 0), allow progression to level 1
+    // For existing projects, use the current level
+    const effectiveCurrentLevel = currentLevel === 0 ? 0 : currentLevel;
+    
+    console.log('Normalized current level:', effectiveCurrentLevel);
+    
+    // Allow progression to level 1 for new projects (level 0)
+    if (effectiveCurrentLevel === 0 && selectedLevel === 1) {
+      console.log(`✅ Valid progression: Starting work (Level 0 → Level 1)`);
+    } else {
+      // For other cases, prevent going backwards
+      if (selectedLevel <= effectiveCurrentLevel) {
+        toast.error('Cannot move backwards in progress');
+        return;
+      }
+      
+      // Prevent jumping more than one level ahead
+      if (selectedLevel > effectiveCurrentLevel + 1) {
+        toast.error(`Cannot jump from Level ${effectiveCurrentLevel} to Level ${selectedLevel}. You must progress through each level sequentially (Level ${effectiveCurrentLevel + 1} next).`);
+        return;
+      }
+      
+      // Additional validation: ensure current level is completed before moving to next
+      if (selectedLevel === effectiveCurrentLevel + 1) {
+        console.log(`✅ Valid progression: Level ${effectiveCurrentLevel} → Level ${selectedLevel}`);
+      }
     }
 
     try {
@@ -104,6 +130,23 @@ const ProjectDetails = () => {
           completionPercentage: response.completionPercentage,
           projectStatus: response.projectStatus
         }));
+        
+        // Dispatch event to notify recruiter dashboard of milestone update
+        window.dispatchEvent(new CustomEvent('milestoneUpdated', {
+          detail: {
+            projectId: id,
+            currentLevel: response.progressLevel,
+            completionPercentage: response.completionPercentage,
+            projectStatus: response.projectStatus,
+            timestamp: new Date().toISOString()
+          }
+        }));
+        
+        console.log('🔄 Dispatched milestoneUpdated event from ProjectDetails:', {
+          projectId: id,
+          currentLevel: response.progressLevel
+        });
+        
         console.log('Project updated successfully');
       } else {
         console.log('API returned success=false:', response);
@@ -284,9 +327,12 @@ const ProjectDetails = () => {
                 <div className="space-y-4">
                   {Object.entries(progressLevels).map(([level, data]) => {
                     const levelNum = parseInt(level);
-                    const isCurrent = levelNum === project.progressLevel;
+                    const isCurrent = levelNum === (project.progressLevel || project.currentLevel || 0);
                     const isSelected = levelNum === selectedLevel;
-                    const isDisabled = levelNum <= project.progressLevel;
+                    // Allow Level 1 to be clickable when project is at Level 0 (not started)
+                    const currentLevelForUI = project.progressLevel || project.currentLevel || 0;
+                    const isDisabled = (currentLevelForUI === 0 && levelNum === 1) ? false :
+                                      (levelNum <= currentLevelForUI || levelNum > currentLevelForUI + 1);
                     const isCompleted = levelNum === 4 && project.progressLevel === 4;
 
                     return (

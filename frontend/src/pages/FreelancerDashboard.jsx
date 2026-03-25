@@ -23,11 +23,13 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { freelancerAPI, bidAPI, projectAPI } from '../api';
+import { freelancerAPI, bidAPI, projectAPI, paymentAPI } from '../api';
 import toast from 'react-hot-toast';
 
 const FreelancerDashboard = () => {
   const { user } = useAuth();
+  console.log('🔍 FreelancerDashboard component loaded, user:', user?.name);
+  
   const [stats, setStats] = useState([
     {
       icon: <Briefcase className="w-6 h-6" />,
@@ -76,12 +78,34 @@ const FreelancerDashboard = () => {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds
   const [projectEarnings, setProjectEarnings] = useState({});
+  const [recentPayments, setRecentPayments] = useState([]);
   const intervalRef = useRef(null);
 
   // Load dashboard data
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  // Listen for payment acceptance events
+  useEffect(() => {
+    const handleFreelancerPaymentAccepted = (event) => {
+      console.log('Dashboard: Freelancer payment accepted:', event.detail);
+      
+      // Only refresh if this payment is for current freelancer
+      if (event.detail.freelancerId === user?.id) {
+        loadDashboardData();
+        
+        // Show success message
+        toast.success(`Total earnings updated by ₹${event.detail.amount?.toLocaleString()}!`);
+      }
+    };
+
+    window.addEventListener('freelancerPaymentAccepted', handleFreelancerPaymentAccepted);
+
+    return () => {
+      window.removeEventListener('freelancerPaymentAccepted', handleFreelancerPaymentAccepted);
+    };
+  }, [user?.id]);
 
   // Auto-refresh functionality
   useEffect(() => {
@@ -103,6 +127,14 @@ const FreelancerDashboard = () => {
   }, [autoRefresh, refreshInterval]);
 
   const loadDashboardData = async (isBackgroundRefresh = false) => {
+    console.log('🔍 loadDashboardData called, isBackgroundRefresh:', isBackgroundRefresh);
+    console.log('🔍 User:', user?.name, 'ID:', user?.id);
+    
+    if (!user) {
+      console.log('❌ No user, skipping data load');
+      return;
+    }
+    
     try {
       if (!isBackgroundRefresh) {
         setIsLoading(true);
@@ -110,7 +142,7 @@ const FreelancerDashboard = () => {
         setIsRefreshing(true);
       }
 
-      const [statsData, activeProjectsData, recentProjectsData, bidsData] = await Promise.all([
+      const [statsData, activeProjectsData, recentProjectsData, bidsData, paymentsData] = await Promise.all([
         freelancerAPI.getStats().catch(err => {
           console.error('Error fetching freelancer stats:', err);
           return null;
@@ -126,6 +158,10 @@ const FreelancerDashboard = () => {
         bidAPI.getFreelancerBids().catch(err => {
           console.error('Error fetching freelancer bids:', err);
           return { success: false, data: [] };
+        }),
+        paymentAPI.getFreelancerPayments().catch(err => {
+          console.error('Error fetching freelancer payments:', err);
+          return { success: false, data: { payments: [] } };
         })
       ]);
 
@@ -138,8 +174,10 @@ const FreelancerDashboard = () => {
 
       // Process recent projects data
       if (recentProjectsData && recentProjectsData.success) {
+        console.log('🔍 Recent projects loaded:', recentProjectsData.data);
         setRecentProjects(recentProjectsData.data);
       } else {
+        console.log('🔍 No recent projects found');
         setRecentProjects([]);
       }
 
@@ -177,10 +215,30 @@ const FreelancerDashboard = () => {
         setBids([]);
       }
 
+      // Process payments data
+      if (paymentsData && paymentsData.success) {
+        setRecentPayments(paymentsData.data?.payments || []);
+        console.log('Recent payments set:', paymentsData.data?.payments || []);
+      } else {
+        setRecentPayments([]);
+      }
+
       // Process stats data
       if (statsData) {
         const statsPayload = statsData.data || {};
         setProjectEarnings(statsPayload.projectEarningsByProjectId || {});
+
+        // Add verification payments to total earnings
+        const storedVerifications = JSON.parse(localStorage.getItem('paymentVerifications') || '[]');
+        const freelancerPayments = storedVerifications.filter(verification => 
+          verification.freelancerId === user?.id && 
+          verification.status === 'ACCEPTED'
+        );
+        const verificationTotal = freelancerPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+        
+        // Combine backend earnings with verification earnings
+        const backendTotalEarnings = statsPayload.totalEarnings || 0;
+        const combinedTotalEarnings = backendTotalEarnings + verificationTotal;
 
         const activeProjectsCount = activeProjectsData?.success ? activeProjectsData.data.length : 0;
         const newStats = [
@@ -196,7 +254,7 @@ const FreelancerDashboard = () => {
           {
             icon: <DollarSign className="w-6 h-6" />,
             label: 'Total Earnings',
-            value: `₹${statsPayload.totalEarnings?.toLocaleString() || '0'}`,
+            value: `₹${combinedTotalEarnings?.toLocaleString() || '0'}`,
             change: `+₹${statsPayload.earningsThisMonth?.toLocaleString() || 0} this month`,
             color: 'bg-green-500',
             trend: (statsPayload.earningsThisMonth || 0) > 0 ? 'up' : 'neutral',
@@ -296,7 +354,65 @@ const FreelancerDashboard = () => {
   };
 
   const getProgressPercentage = (project) => {
-    return project.completionPercentage || 0;
+    console.log('🔍 getProgressPercentage called with project:', project);
+    
+    if (!project) {
+      console.log('❌ No project provided');
+      return 0;
+    }
+    
+    // Calculate percentage based on 4-level milestone system with Level 1 = 0%
+    const currentLevel = project.currentLevel || 1;
+    const totalLevels = project.totalLevels || 4;
+    
+    // Calculate percentage: Level 1 = 0% (work started), Level 2 = 25%, Level 3 = 50%, Level 4 = 75%, Level 5+ = 100%
+    let percentage = 0;
+    if (currentLevel === 1) {
+      percentage = 0; // Work just started
+    } else if (currentLevel === 2) {
+      percentage = 25; // First milestone completed
+    } else if (currentLevel === 3) {
+      percentage = 50; // Second milestone completed
+    } else if (currentLevel === 4) {
+      percentage = 75; // Third milestone completed
+    } else if (currentLevel > 4) {
+      percentage = 100; // All milestones completed
+    }
+    
+    // Also check if project has progressLevel which might be more up-to-date
+    const progressLevel = project.progressLevel;
+    const originalPercentage = project.completionPercentage || 0;
+    
+    if (progressLevel) {
+      console.log('🔍 Project has progressLevel:', progressLevel, 'vs currentLevel:', currentLevel);
+      // Use progressLevel if it exists and is different
+      if (progressLevel !== currentLevel) {
+        if (progressLevel === 1) percentage = 0;
+        else if (progressLevel === 2) percentage = 25;
+        else if (progressLevel === 3) percentage = 50;
+        else if (progressLevel === 4) percentage = 75;
+        else if (progressLevel > 4) percentage = 100;
+      }
+    }
+    
+    // Fallback: if percentage is still 0 but project has completionPercentage, use that
+    if (percentage === 0 && originalPercentage > 0) {
+      console.log('🔍 Using completionPercentage as fallback:', originalPercentage);
+      percentage = originalPercentage;
+    }
+    
+    console.log('🔍 Freelancer Dashboard Progress Calculation:', {
+      projectId: project._id,
+      projectTitle: project.title,
+      currentLevel,
+      progressLevel,
+      totalLevels,
+      calculatedPercentage: percentage,
+      originalCompletionPercentage: originalPercentage,
+      projectData: project
+    });
+    
+    return percentage;
   };
 
   const getPriorityColor = (priority) => {
@@ -615,6 +731,97 @@ const FreelancerDashboard = () => {
             )}
           </div>
         </motion.div>
+
+        {/* Recent Payments */}
+        {recentPayments.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.7 }}
+            className="bg-white rounded-xl shadow-md p-6"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Recent Payments</h2>
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-500">
+                  {recentPayments.length} payment{recentPayments.length !== 1 ? 's' : ''}
+                </div>
+                <Link to="/freelancer/payments" className="text-primary-600 hover:text-primary-700 font-medium">
+                  View All
+                </Link>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {recentPayments.slice(0, 5).map((payment, index) => (
+                <motion.div
+                  key={payment._id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  className="border border-gray-200 rounded-lg p-4 hover:border-green-300 hover:shadow-md transition-all duration-200"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="font-semibold text-gray-900">{payment.project?.title || 'Project'}</h4>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
+                          payment.gateway === 'UPI_DIRECT' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {payment.gateway === 'UPI_DIRECT' ? '📱 UPI' : '💳 Razorpay'}
+                        </span>
+                      </div>
+                      
+                      <div className="text-sm text-gray-600 mb-2">
+                        <span className="font-medium">From:</span> {payment.recruiter?.name || 'Recruiter'}
+                      </div>
+                      
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {payment.paidAt ? new Date(payment.paidAt).toLocaleDateString() : 'Date unavailable'}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Briefcase className="w-3 h-3" />
+                          {payment.milestone?.status || 'Milestone'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-green-600 flex items-center justify-end gap-1">
+                        <DollarSign className="w-4 h-4" />
+                        {Number(payment.amount || 0).toLocaleString()}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {payment.transactionId || payment.gatewayPaymentId || 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+              
+              {recentPayments.length > 5 && (
+                <div className="text-center pt-4 border-t border-gray-200 space-y-2">
+                  <Link
+                    to="/freelancer/payments"
+                    className="text-primary-600 hover:text-primary-700 font-medium text-sm"
+                  >
+                    View all {recentPayments.length} payments →
+                  </Link>
+                  <div>
+                    <Link
+                      to="/freelancer/payments"
+                      className="text-yellow-600 hover:text-yellow-700 font-medium text-xs block"
+                    >
+                      🔍 Check payment verifications →
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
 
         {/* Enhanced Recent Bids */}
         <motion.div

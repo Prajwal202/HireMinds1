@@ -1295,6 +1295,22 @@ export const paymentAPI = {
       console.error('Error fetching freelancer payments:', error);
       throw error;
     }
+  },
+
+  // Record direct UPI payment (for freelancer to confirm receipt)
+  recordUPIPayment: async (projectId, amount, milestoneLevel, paymentReference) => {
+    try {
+      const response = await API.post('/v1/payments/record-upi-payment', {
+        projectId,
+        amount,
+        milestoneLevel,
+        paymentReference
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error recording UPI payment:', error);
+      throw error;
+    }
   }
 };
 

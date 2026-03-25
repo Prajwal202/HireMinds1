@@ -6,7 +6,8 @@ const {
   getPayableAmount,
   initializeMilestones,
   getRazorpayKey,
-  verifyRazorpayPayment
+  verifyRazorpayPayment,
+  recordUPIPayment
 } = require('../controllers/paymentController');
 const { protect } = require('../middleware/auth');
 
@@ -21,6 +22,9 @@ router.get('/razorpay-key', getRazorpayKey);
 router.post('/verify', verifyRazorpayPayment);
 router.post('/initialize-milestones/:projectId', initializeMilestones);
 router.get('/project/:projectId/payable-amount', getPayableAmount);
+
+// Freelancer routes
+router.post('/record-upi-payment', recordUPIPayment);
 router.get('/freelancer/me', getFreelancerPayments);
 
 // Project payments (accessible by recruiter, freelancer, and admin)

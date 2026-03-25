@@ -459,3 +459,71 @@ exports.initializeMilestones = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Record direct UPI payment (when freelancer confirms payment received)
+// @route   POST /api/v1/payments/record-upi-payment
+// @access  Private (Freelancer only)
+exports.recordUPIPayment = async (req, res, next) => {
+  try {
+    const { projectId, amount, milestoneLevel, paymentReference } = req.body;
+
+    if (!projectId || !amount) {
+      return next(new ErrorResponse('Project ID and amount are required', 400));
+    }
+
+    // Get project details
+    const project = await Job.findById(projectId);
+    if (!project) {
+      return next(new ErrorResponse('Project not found', 404));
+    }
+
+    // Check if user is the freelancer allocated to this project
+    if (project.allocatedTo?.toString() !== req.user.id) {
+      return next(new ErrorResponse('Only the allocated freelancer can record payment', 403));
+    }
+
+    // Get or create milestone
+    let milestone = await Milestone.findOne({ project: projectId, level: milestoneLevel || 0 });
+    if (!milestone) {
+      milestone = await Milestone.create({
+        project: projectId,
+        level: milestoneLevel || 0,
+        status: progressLevels[milestoneLevel || 0].status,
+        percentage: progressLevels[milestoneLevel || 0].percentage
+      });
+    }
+
+    // Check if payment already exists for this milestone
+    const existingPayment = await Payment.findOne({ milestone: milestone._id });
+    if (existingPayment && existingPayment.transactionStatus === 'PAID') {
+      return next(new ErrorResponse('Payment already recorded for this milestone', 400));
+    }
+
+    // Create payment record
+    const payment = await Payment.create({
+      project: projectId,
+      milestone: milestone._id,
+      recruiter: project.postedBy,
+      freelancer: req.user.id,
+      amount: Number(amount),
+      currency: 'INR',
+      gateway: 'UPI_DIRECT',
+      gatewayOrderId: `UPI_${Date.now()}`,
+      transactionId: paymentReference || `UPI_TXN_${Date.now()}`,
+      transactionStatus: 'PAID',
+      paidAt: new Date(),
+      notes: 'Direct UPI payment confirmed by freelancer'
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        payment,
+        message: 'UPI payment recorded successfully'
+      }
+    });
+  } catch (error) {
+    console.error('Error recording UPI payment:', error);
+    next(error);
+  }
+};
